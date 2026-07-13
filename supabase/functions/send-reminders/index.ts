@@ -77,13 +77,14 @@ async function ensureRecurringOccurrences() {
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
+  const horizonStr = addDays(todayStr, 60); // genera ocurrencias hasta 60 días adelante, no solo la de hoy
 
   for (const [seriesId, latest] of latestBySeries) {
     let cursor = latest.date;
     let guard = 0;
-    while (guard++ < 60) {
+    while (guard++ < 400) {
       const next = nextTaskRepeatDate(cursor, latest.repeat);
-      if (!next || next > todayStr) break;
+      if (!next || next > horizonStr) break;
 
       const { data: exists } = await supabase
         .from("tasks").select("id").eq("series_id", seriesId).eq("date", next).maybeSingle();
