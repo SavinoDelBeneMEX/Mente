@@ -644,11 +644,11 @@
     <div class="brand-mark" style="margin:0 auto 14px;">🧠</div>
     <h1 class="rounded-face" style="text-align:center;font-size:24px;margin:0 0 4px;">Mente</h1>
     <p style="text-align:center;color:var(--muted);font-size:13.5px;margin:0 0 20px;">Iniciá sesión para sincronizar tus tareas y recibir recordatorios push.</p>
-    <input type="email" id="authEmail" placeholder="Email" autocomplete="email" />
-    <input type="password" id="authPassword" placeholder="Contraseña" autocomplete="current-password" />
+    <input type="email" id="authEmail" placeholder="Email" autocomplete="email" required />
+    <input type="password" id="authPassword" placeholder="Contraseña" autocomplete="current-password" required />
     <div class="auth-error" id="authError"></div>
     <button type="button" class="auth-submit" id="authSignIn">Ingresar</button>
-    <button type="button" class="auth-switch" id="authSignUp">¿No tenés cuenta? Creá una</button>
+    <button type="button" class="auth-switch" id="authSignUp">¿No tienes cuenta? Crea una</button>
   </div>
 </div>
 
@@ -1628,18 +1628,27 @@
     authError.textContent = msg;
     authError.style.color = ok ? 'var(--good)' : 'var(--bad)';
   }
-  document.getElementById('authSignIn').addEventListener('click', async function () {
+  function readAuthFields() {
     var email = document.getElementById('authEmail').value.trim();
     var password = document.getElementById('authPassword').value;
-    var res = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (!email || !password) {
+      showAuthMessage('Escribe tu email y tu contraseña antes de continuar.', false);
+      return null;
+    }
+    return { email: email, password: password };
+  }
+  document.getElementById('authSignIn').addEventListener('click', async function () {
+    var creds = readAuthFields();
+    if (!creds) return;
+    var res = await sb.auth.signInWithPassword(creds);
     if (res.error) showAuthMessage(res.error.message, false);
   });
   document.getElementById('authSignUp').addEventListener('click', async function () {
-    var email = document.getElementById('authEmail').value.trim();
-    var password = document.getElementById('authPassword').value;
-    var res = await sb.auth.signUp({ email: email, password: password });
+    var creds = readAuthFields();
+    if (!creds) return;
+    var res = await sb.auth.signUp(creds);
     if (res.error) showAuthMessage(res.error.message, false);
-    else showAuthMessage('Cuenta creada. Si tu proyecto pide confirmar el email, revisá tu casilla y después iniciá sesión.', true);
+    else showAuthMessage('Cuenta creada. Si tu proyecto pide confirmar el email, revisa tu bandeja de entrada y después inicia sesión.', true);
   });
   document.getElementById('signOutBtn').addEventListener('click', async function () {
     await sb.auth.signOut();
