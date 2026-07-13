@@ -2,8 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Mente — enfoque y planner</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="icon" href="/icon-192.png" />
+<meta name="theme-color" content="#1a1a1a" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Mente" />
 <script>
   window.MENTE_CONFIG = {
     SUPABASE_URL: 'https://ecmenbgaeqvojfcgyjgc.supabase.co',
@@ -1058,7 +1066,13 @@
     notifBtn.dataset.on = granted ? 'true' : 'false';
     notifLabel.textContent = granted ? 'Activos' : 'Recordatorios';
   }
+  function isIos() { return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+  function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
   notifBtn.addEventListener('click', async function () {
+    if (isIos() && !isStandalone()) {
+      alert('En iPhone, los recordatorios push solo funcionan si agregás Mente a tu pantalla de inicio.\n\n1. Tocá el botón de compartir (el cuadrado con la flecha) en Safari.\n2. Elegí "Agregar a inicio".\n3. Abrí Mente desde el ícono que quedó en tu pantalla de inicio (no desde Safari).\n4. Ahí volvé a tocar "Recordatorios".');
+      return;
+    }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       alert('Este navegador no soporta notificaciones push.');
       return;
