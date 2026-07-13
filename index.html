@@ -992,23 +992,65 @@
 
   /* ---------- sound ---------- */
   var audioCtx = null;
+  function getAudioCtx() {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function playTone(ctx, t0, freq, startAt, dur, gainPeak, type) {
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0 + startAt);
+    gain.gain.setValueAtTime(0.0001, t0 + startAt);
+    gain.gain.linearRampToValueAtTime(gainPeak, t0 + startAt + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + startAt + dur);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0 + startAt);
+    osc.stop(t0 + startAt + dur + 0.02);
+    return osc;
+  }
   function chime() {
     if (!prefs.sound) return;
     try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      var t0 = audioCtx.currentTime;
-      [660, 880].forEach(function (freq, i) {
-        var osc = audioCtx.createOscillator();
-        var gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.001, t0 + i * 0.09);
-        gain.gain.linearRampToValueAtTime(0.12, t0 + i * 0.09 + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, t0 + i * 0.09 + 0.22);
-        osc.connect(gain).connect(audioCtx.destination);
-        osc.start(t0 + i * 0.09);
-        osc.stop(t0 + i * 0.09 + 0.24);
-      });
+      var ctx = getAudioCtx();
+      var t0 = ctx.currentTime;
+      playTone(ctx, t0, 660, 0, 0.22, 0.12, 'triangle');
+      playTone(ctx, t0, 880, 0.09, 0.24, 0.12, 'triangle');
+    } catch (e) {}
+  }
+  function addSound() {
+    if (!prefs.sound) return;
+    try {
+      var ctx = getAudioCtx();
+      playTone(ctx, ctx.currentTime, 720, 0, 0.1, 0.09, 'sine');
+    } catch (e) {}
+  }
+  function deleteSound() {
+    if (!prefs.sound) return;
+    try {
+      var ctx = getAudioCtx();
+      var t0 = ctx.currentTime;
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(420, t0);
+      osc.frequency.exponentialRampToValueAtTime(160, t0 + 0.16);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.linearRampToValueAtTime(0.09, t0 + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.2);
+    } catch (e) {}
+  }
+  function starSound() {
+    if (!prefs.sound) return;
+    try {
+      var ctx = getAudioCtx();
+      var t0 = ctx.currentTime;
+      playTone(ctx, t0, 988, 0, 0.16, 0.1, 'triangle');
+      playTone(ctx, t0, 1318.5, 0.06, 0.18, 0.09, 'triangle');
     } catch (e) {}
   }
   var soundBtn = document.getElementById('soundBtn');
@@ -1122,7 +1164,7 @@
     };
     if (newId) { insertFields.id = newId; insertFields.series_id = newId; }
     var inserted = await dbInsertTask(insertFields);
-    if (inserted) tasks.push(inserted);
+    if (inserted) { tasks.push(inserted); addSound(); }
     document.getElementById('inpTitle').value = '';
     document.getElementById('inpTitle').focus();
     renderAll();
@@ -1197,11 +1239,13 @@
     t.star = !t.star;
     renderAll();
     dbUpdateTask(id, { star: t.star });
+    if (t.star) starSound();
   }
   function removeTask(id) {
     tasks = tasks.filter(function (x) { return x.id !== id; });
     renderAll();
     dbDeleteTask(id);
+    deleteSound();
   }
   function snoozeTask(id) {
     var t = tasks.find(function (x) { return x.id === id; });
@@ -1227,6 +1271,7 @@
     t.subtasks.push({ id: uid(), title: title.trim(), done: false });
     renderAll();
     dbUpdateTask(id, { subtasks: t.subtasks });
+    addSound();
     setTimeout(function () { var el = document.querySelector('.subtasks[data-owner="' + id + '"]'); if (el) el.classList.add('open'); }, 0);
   }
   function toggleSubtaskDone(taskId, subId) {
@@ -1246,6 +1291,7 @@
     t.subtasks = t.subtasks.filter(function (x) { return x.id !== subId; });
     renderAll();
     dbUpdateTask(taskId, { subtasks: t.subtasks });
+    deleteSound();
     setTimeout(function () { var el = document.querySelector('.subtasks[data-owner="' + taskId + '"]'); if (el) el.classList.add('open'); }, 0);
   }
   async function addReminder(taskId, opts) {
@@ -1259,6 +1305,7 @@
     if (!inserted) return;
     t.reminders.push(inserted);
     renderAll();
+    addSound();
     setTimeout(function () { var el = document.querySelector('.subtasks[data-owner="' + taskId + '"]'); if (el) el.classList.add('open'); }, 0);
   }
   function removeReminder(taskId, remId) {
@@ -1267,6 +1314,7 @@
     t.reminders = t.reminders.filter(function (x) { return x.id !== remId; });
     renderAll();
     dbDeleteReminder(remId);
+    deleteSound();
     setTimeout(function () { var el = document.querySelector('.subtasks[data-owner="' + taskId + '"]'); if (el) el.classList.add('open'); }, 0);
   }
 
@@ -1678,7 +1726,7 @@
               priority: 'media', category: (prefs.scopeFilter === 'trabajo' ? 'trabajo' : 'personal'),
               star: false, done: false, subtasks: [], repeat: null
             });
-            if (inserted) tasks.push(inserted);
+            if (inserted) { tasks.push(inserted); addSound(); }
           }
           renderAll();
         }
@@ -1761,7 +1809,7 @@
           category: (prefs.scopeFilter === 'trabajo' ? 'trabajo' : 'personal'),
           star: false, done: false, subtasks: [], repeat: null
         });
-        if (inserted) tasks.push(inserted);
+        if (inserted) { tasks.push(inserted); addSound(); }
       }
       renderAll();
     }
