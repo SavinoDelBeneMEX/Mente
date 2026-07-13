@@ -1,4 +1,4 @@
-// Edge Function: revisa los recordatorios pendientes y envía push notifications.
+// Edge Function: adelanta las tareas recurrentes que falten y envía push notifications.
 // Se dispara por un Cron Job de Supabase cada 1 minuto (ver README.md).
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -21,7 +21,8 @@ function nowInTz(tz: string) {
   return { dateStr: `${get("year")}-${get("month")}-${get("day")}`, hh: Number(get("hour")), mm: Number(get("minute")) };
 }
 
-function isDueToday(r: { repeat: string; date: string | null; n: number | null }, todayStr: string) {
+// ---------- recordatorios (reminders.repeat es un string: once | daily | weekdays | every) ----------
+function reminderIsDueToday(r: { repeat: string; date: string | null; n: number | null }, todayStr: string) {
   if (r.repeat === "daily") return true;
   if (r.repeat === "weekdays") {
     const dow = new Date(todayStr + "T00:00:00Z").getUTCDay();
@@ -37,7 +38,72 @@ function isDueToday(r: { repeat: string; date: string | null; n: number | null }
   return r.date === todayStr; // once
 }
 
+// ---------- tareas recurrentes (tasks.repeat es jsonb: {type, n?}) ----------
+function addDays(dateStr: string, n: number) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function nextTaskRepeatDate(dateStr: string, repeat: { type: string; n?: number }) {
+  if (!repeat) return null;
+  if (repeat.type === "daily") return addDays(dateStr, 1);
+  if (repeat.type === "every") return addDays(dateStr, repeat.n || 1);
+  if (repeat.type === "weekdays") {
+    let d = new Date(dateStr + "T00:00:00Z");
+    do { d.setUTCDate(d.getUTCDate() + 1); } while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
+    return d.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+type TaskRow = {
+  id: string; series_id: string; date: string; time: string | null; title: string;
+  priority: string; category: string; repeat: { type: string; n?: number }; subtasks: { title: string }[];
+  user_id: string;
+};
+
+async function ensureRecurringOccurrences() {
+  const { data: rows } = await supabase
+    .from("tasks")
+    .select("id, series_id, date, time, title, priority, category, repeat, subtasks, user_id")
+    .not("series_id", "is", null)
+    .not("repeat", "is", null)
+    .not("date", "is", null)
+    .order("date", { ascending: false });
+
+  const latestBySeries = new Map<string, TaskRow>();
+  for (const t of (rows ?? []) as TaskRow[]) {
+    if (!latestBySeries.has(t.series_id)) latestBySeries.set(t.series_id, t);
+  }
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  for (const [seriesId, latest] of latestBySeries) {
+    let cursor = latest.date;
+    let guard = 0;
+    while (guard++ < 60) {
+      const next = nextTaskRepeatDate(cursor, latest.repeat);
+      if (!next || next > todayStr) break;
+
+      const { data: exists } = await supabase
+        .from("tasks").select("id").eq("series_id", seriesId).eq("date", next).maybeSingle();
+
+      if (!exists) {
+        await supabase.from("tasks").insert({
+          user_id: latest.user_id, title: latest.title, date: next, time: latest.time,
+          priority: latest.priority, category: latest.category, star: false, done: false,
+          repeat: latest.repeat, series_id: seriesId,
+          subtasks: (latest.subtasks || []).map((s) => ({ id: crypto.randomUUID(), title: s.title, done: false })),
+        });
+      }
+      cursor = next;
+    }
+  }
+}
+
 Deno.serve(async () => {
+  await ensureRecurringOccurrences();
+
   const { data: reminders, error } = await supabase
     .from("reminders")
     .select("*, tasks(title, done)");
@@ -50,13 +116,17 @@ Deno.serve(async () => {
   const tzCache = new Map<string, { dateStr: string; hh: number; mm: number }>();
 
   for (const r of reminders ?? []) {
-    if (!r.tasks || r.tasks.done) continue;
+    if (!r.tasks) continue;
+    // Un recordatorio "una vez" se cancela si esa tarea puntual ya se completó.
+    // Uno recurrente (diario / días hábiles / cada X días) suena siempre según el horario,
+    // sin importar si la ocurrencia de hoy ya quedó marcada como hecha.
+    if (r.repeat === "once" && r.tasks.done) continue;
 
     if (!tzCache.has(r.timezone)) tzCache.set(r.timezone, nowInTz(r.timezone));
     const local = tzCache.get(r.timezone)!;
 
     if (r.last_fired_on === local.dateStr) continue; // ya se envió hoy
-    if (!isDueToday(r, local.dateStr)) continue;
+    if (!reminderIsDueToday(r, local.dateStr)) continue;
 
     const [rh, rm] = r.time.split(":").map(Number);
     const dueMinutes = rh * 60 + rm;

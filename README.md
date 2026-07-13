@@ -112,6 +112,28 @@ vercel --prod
    la notificación del sistema operativo igual, porque ahora el que "vigila" el reloj
    es Supabase, no tu navegador.
 
+## Actualización: tareas recurrentes que se auto-generan
+
+A partir de este cambio, las tareas recurrentes (diario / días hábiles / cada X días)
+aparecen solas según el calendario, aunque no hayas completado la ocurrencia anterior —
+igual que un evento de calendario real. Antes, la siguiente ocurrencia solo se creaba
+al marcar la actual como hecha.
+
+Si ya tenías el proyecto funcionando desde antes, hacen falta dos pasos únicos:
+
+1. **Correr la migración de base de datos** — en el **SQL Editor** de Supabase, pegá y
+   ejecutá el contenido de `supabase/migration_series_id.sql` (agrega una columna nueva,
+   no borra nada de lo que ya tenés).
+2. **Redesplegar la función**:
+   ```
+   npx supabase@latest functions deploy send-reminders
+   ```
+3. Subí el `index.html` actualizado a tu repo/Vercel como siempre (o esperá el deploy
+   automático si ya lo conectaste a GitHub).
+
+Con esto, la misma función que revisa los recordatorios cada minuto también revisa si
+falta crear la próxima ocurrencia de cada tarea recurrente y la genera sola.
+
 ## Notas y límites
 
 - Cada dispositivo/navegador donde tocás "🔔 Recordatorios" queda suscripto por separado — si

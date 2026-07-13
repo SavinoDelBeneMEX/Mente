@@ -886,6 +886,7 @@
       star: row.star,
       done: row.done,
       repeat: row.repeat || null,
+      seriesId: row.series_id || null,
       subtasks: row.subtasks || [],
       reminders: (row.reminders || []).map(function (r) {
         return { id: r.id, time: hhmm(r.time), repeat: r.repeat, date: r.date, n: r.n };
@@ -896,6 +897,9 @@
     var res = await sb.from('tasks').select('*, reminders(*)').order('created_at', { ascending: true });
     if (res.error) { console.error(res.error); return; }
     tasks = (res.data || []).map(rowToTask);
+    tasks.forEach(function (t) {
+      if (t.repeat && !t.seriesId) { t.seriesId = t.id; dbUpdateTask(t.id, { series_id: t.id }); }
+    });
     renderAll();
   }
   async function dbInsertTask(fields) {
@@ -1104,7 +1108,8 @@
     if (selectedRepeat === 'daily') repeat = { type: 'daily' };
     else if (selectedRepeat === 'weekdays') repeat = { type: 'weekdays' };
     else if (selectedRepeat === 'every') repeat = { type: 'every', n: Math.max(2, parseInt(document.getElementById('repeatN').value, 10) || 2) };
-    var inserted = await dbInsertTask({
+    var newId = repeat ? crypto.randomUUID() : undefined;
+    var insertFields = {
       title: title,
       date: document.getElementById('inpDate').value || null,
       time: document.getElementById('inpTime').value || null,
@@ -1114,7 +1119,9 @@
       done: false,
       subtasks: [],
       repeat: repeat
-    });
+    };
+    if (newId) { insertFields.id = newId; insertFields.series_id = newId; }
+    var inserted = await dbInsertTask(insertFields);
     if (inserted) tasks.push(inserted);
     document.getElementById('inpTitle').value = '';
     document.getElementById('inpTitle').focus();
@@ -1164,15 +1171,18 @@
       chime();
       var rect = evt && evt.target ? evt.target.getBoundingClientRect() : { left: window.innerWidth/2, top: window.innerHeight/2, width: 0, height: 0 };
       confettiBurst(rect.left + rect.width/2, rect.top + rect.height/2);
-      if (t.repeat && t.date) {
+      if (t.repeat && t.date && t.seriesId) {
         var nextDate = nextRepeatDate(t.date, t.repeat);
         if (nextDate) {
-          var inserted = await dbInsertTask({
-            title: t.title, date: nextDate, time: t.time, priority: t.priority, category: t.category,
-            star: false, done: false, repeat: t.repeat,
-            subtasks: t.subtasks.map(function (s) { return { id: uid(), title: s.title, done: false }; })
-          });
-          if (inserted) { tasks.push(inserted); renderAll(); }
+          var already = await sb.from('tasks').select('id').eq('series_id', t.seriesId).eq('date', nextDate).maybeSingle();
+          if (!already.data) {
+            var inserted = await dbInsertTask({
+              title: t.title, date: nextDate, time: t.time, priority: t.priority, category: t.category,
+              star: false, done: false, repeat: t.repeat, series_id: t.seriesId,
+              subtasks: t.subtasks.map(function (s) { return { id: uid(), title: s.title, done: false }; })
+            });
+            if (inserted && !tasks.find(function (x) { return x.id === inserted.id; })) { tasks.push(inserted); renderAll(); }
+          }
         }
       }
     }

@@ -14,6 +14,7 @@ create table if not exists public.tasks (
   star boolean not null default false,
   done boolean not null default false,
   repeat jsonb,
+  series_id uuid,                        -- agrupa todas las ocurrencias de una misma tarea recurrente
   subtasks jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
@@ -60,3 +61,4 @@ create policy "own push subs" on public.push_subscriptions
 create index if not exists reminders_user_idx on public.reminders(user_id);
 create index if not exists reminders_lastfired_idx on public.reminders(last_fired_on);
 create index if not exists tasks_user_idx on public.tasks(user_id);
+create index if not exists tasks_series_idx on public.tasks(series_id, date);
