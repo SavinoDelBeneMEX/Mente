@@ -542,6 +542,54 @@
   .mini-time { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; flex: none; }
   .mini-empty { font-size: 12px; color: var(--faint); padding: 4px 2px; }
 
+  /* ---------- month calendar ---------- */
+  .mes-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .mes-title { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .mes-nav { display: flex; align-items: center; gap: 18px; }
+  .mes-nav button {
+    background: none; border: none; color: var(--muted); font-size: 18px;
+    cursor: pointer; padding: 2px 4px; line-height: 1; touch-action: manipulation;
+  }
+  .mes-nav button:hover { color: var(--ink); }
+  .mes-today-btn {
+    font-size: 12px; text-decoration: underline; text-underline-offset: 2px;
+    color: var(--muted); font-weight: 500;
+  }
+  .mes-today-btn:hover { color: var(--ink); }
+  .mes-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+  .mes-weekday {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700;
+    text-align: center; padding: 8px 0; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line);
+  }
+  .mes-cell {
+    min-height: 80px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line);
+    padding: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 6px;
+    touch-action: manipulation; transition: background .1s;
+  }
+  .mes-cell.empty { cursor: default; }
+  .mes-cell:hover:not(.empty) { background: var(--surface-sunken); }
+  .mes-cell.is-selected { background: var(--surface-sunken); }
+  .mes-daynum { font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .mes-cell.is-today .mes-daynum { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  .mes-cell.empty .mes-daynum { color: var(--faint); }
+  .mes-dots { display: flex; gap: 3px; flex-wrap: wrap; }
+  .mes-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--ink); flex: none; }
+  .mes-day-panel { margin-top: 36px; }
+  .mes-day-panel-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; letter-spacing: -0.01em; }
+  .mes-quick-add {
+    margin-top: 14px; display: flex; gap: 6px;
+  }
+  .mes-quick-add input {
+    flex: 1; font-size: 14px; padding: 10px 2px; border-radius: 0;
+    border: none; border-bottom: 1px solid var(--line); background: none; color: var(--ink); font-family: inherit;
+  }
+  .mes-quick-add input:focus { outline: none; border-bottom-color: var(--ink); }
+  @media (max-width: 640px) {
+    .mes-cell { min-height: 52px; padding: 6px 4px; gap: 3px; }
+    .mes-daynum { font-size: 11.5px; }
+    .mes-weekday { font-size: 9.5px; padding: 6px 0; }
+  }
+
   /* ---------- filters ---------- */
   .filters { display: flex; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
   .filter-btn {
@@ -705,6 +753,7 @@
     <button class="tab" data-view="dia"><span class="tab-icon">🗓️</span><span class="tab-label">Día</span></button>
     <button class="tab" data-view="enfoque"><span class="tab-icon">🎯</span><span class="tab-label">Enfoque</span></button>
     <button class="tab" data-view="semana"><span class="tab-icon">📅</span><span class="tab-label">Semana</span></button>
+    <button class="tab" data-view="mes"><span class="tab-icon">📆</span><span class="tab-label">Mes</span></button>
     <button class="tab" data-view="tareas"><span class="tab-icon">📋</span><span class="tab-label">Tareas</span> <span class="count" id="cntTareas">0</span></button>
   </div>
 
@@ -731,6 +780,10 @@
 
   <div class="view" id="view-semana">
     <div class="week-grid" id="weekGrid"></div>
+  </div>
+
+  <div class="view" id="view-mes">
+    <div id="mesWrap"></div>
   </div>
 
   <div class="view" id="view-tareas">
@@ -1063,6 +1116,7 @@
       document.getElementById('view-' + tab.dataset.view).classList.add('active');
       if (tab.dataset.view === 'enfoque') renderFocus();
       if (tab.dataset.view === 'dia') renderDiaPlanner();
+      if (tab.dataset.view === 'mes') renderMes();
     });
   });
 
@@ -1613,12 +1667,93 @@
     });
   }
 
+  /* ---------- month calendar ---------- */
+  var mesCursor = new Date();
+  var mesSelectedDate = todayStr;
+  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function renderMes() {
+    var wrap = document.getElementById('mesWrap');
+    var year = mesCursor.getFullYear(), month = mesCursor.getMonth();
+    var first = new Date(year, month, 1);
+    var startOffset = (first.getDay() + 6) % 7;
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    var monthLabel = capitalize(mesCursor.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }));
+    var weekdays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+    var html = '<div class="mes-header"><div class="mes-title">' + monthLabel + '</div>' +
+      '<div class="mes-nav">' +
+        '<button type="button" data-action="mesprev" aria-label="Mes anterior">‹</button>' +
+        '<button type="button" class="mes-today-btn" data-action="mestoday">Hoy</button>' +
+        '<button type="button" data-action="mesnext" aria-label="Mes siguiente">›</button>' +
+      '</div></div>';
+
+    html += '<div class="mes-grid">';
+    weekdays.forEach(function (w) { html += '<div class="mes-weekday">' + w + '</div>'; });
+    for (var i = 0; i < startOffset; i++) html += '<div class="mes-cell empty"></div>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var iso = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      var count = tasks.filter(function (t) { return t.date === iso && inScope(t); }).length;
+      var isToday = iso === todayStr;
+      var isSelected = iso === mesSelectedDate;
+      var dots = '';
+      for (var k = 0; k < Math.min(count, 4); k++) dots += '<span class="mes-dot"></span>';
+      html += '<div class="mes-cell' + (isToday ? ' is-today' : '') + (isSelected ? ' is-selected' : '') + '" data-date="' + iso + '">' +
+        '<div class="mes-daynum">' + d + '</div>' +
+        (count ? '<div class="mes-dots">' + dots + '</div>' : '') +
+        '</div>';
+    }
+    html += '</div>';
+
+    var selTasks = tasks.filter(function (t) { return t.date === mesSelectedDate && inScope(t); })
+      .sort(function (a, b) { return (a.time || '99:99').localeCompare(b.time || '99:99'); });
+    var selLabel = capitalize(new Date(mesSelectedDate + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }));
+
+    html += '<div class="mes-day-panel"><div class="mes-day-panel-title">' + selLabel + '</div>' +
+      '<div class="task-list" id="mesDayList">' +
+      (selTasks.length ? selTasks.map(function (t) { return taskRow(t); }).join('') : '<div class="empty">No hay tareas este día.</div>') +
+      '</div>' +
+      '<div class="mes-quick-add"><input type="text" id="mesQuickInput" placeholder="Agregar tarea para este día…" /></div>' +
+      '</div>';
+
+    wrap.innerHTML = html;
+
+    wrap.querySelector('[data-action="mesprev"]').addEventListener('click', function () { mesCursor.setMonth(mesCursor.getMonth() - 1); renderMes(); });
+    wrap.querySelector('[data-action="mesnext"]').addEventListener('click', function () { mesCursor.setMonth(mesCursor.getMonth() + 1); renderMes(); });
+    wrap.querySelector('[data-action="mestoday"]').addEventListener('click', function () { mesCursor = new Date(); mesSelectedDate = todayStr; renderMes(); });
+    wrap.querySelectorAll('.mes-cell:not(.empty)').forEach(function (cell) {
+      cell.addEventListener('click', function () { mesSelectedDate = cell.dataset.date; renderMes(); });
+    });
+    attachRowHandlers(wrap.querySelector('#mesDayList'));
+
+    var quickInput = document.getElementById('mesQuickInput');
+    var quickCommitted = false;
+    async function commitMesQuick() {
+      if (quickCommitted) return;
+      quickCommitted = true;
+      var val = quickInput.value.trim();
+      if (val) {
+        var inserted = await dbInsertTask({
+          title: val, date: mesSelectedDate, time: null, priority: 'media',
+          category: (prefs.scopeFilter === 'trabajo' ? 'trabajo' : 'personal'),
+          star: false, done: false, subtasks: [], repeat: null
+        });
+        if (inserted) tasks.push(inserted);
+      }
+      renderAll();
+    }
+    quickInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); commitMesQuick(); }
+    });
+    quickInput.addEventListener('blur', function () { commitMesQuick(); });
+  }
+
   function renderAll() {
     renderHoy();
     renderSemana();
     renderTareas();
     if (document.getElementById('view-enfoque').classList.contains('active')) renderFocus();
     if (document.getElementById('view-dia').classList.contains('active')) renderDiaPlanner();
+    if (document.getElementById('view-mes').classList.contains('active')) renderMes();
   }
 
   /* ---------- auth ---------- */
