@@ -10,7 +10,14 @@ const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
 const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   try {
     var authHeader = req.headers.get("Authorization") || "";
     var jwt = authHeader.replace(/^Bearer\s+/i, "");
@@ -65,5 +72,8 @@ Deno.serve(async (req) => {
 });
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status: status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status: status,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
 }
