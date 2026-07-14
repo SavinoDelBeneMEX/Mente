@@ -17,6 +17,7 @@ create table if not exists public.tasks (
   series_id uuid,                        -- agrupa todas las ocurrencias de una misma tarea recurrente
   subtasks jsonb not null default '[]'::jsonb,
   notes text,
+  google_event_id text,                  -- id del evento espejo en Google Calendar, si ya se sincronizó
   created_at timestamptz not null default now()
 );
 
@@ -42,9 +43,20 @@ create table if not exists public.push_subscriptions (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.google_tokens (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  refresh_token text not null,
+  access_token text,
+  access_token_expires_at timestamptz,
+  timezone text not null default 'UTC',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.tasks enable row level security;
 alter table public.reminders enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.google_tokens enable row level security;
 
 drop policy if exists "own tasks" on public.tasks;
 create policy "own tasks" on public.tasks
@@ -56,6 +68,10 @@ create policy "own reminders" on public.reminders
 
 drop policy if exists "own push subs" on public.push_subscriptions;
 create policy "own push subs" on public.push_subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "own google tokens" on public.google_tokens;
+create policy "own google tokens" on public.google_tokens
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Índices para que la función de envío de push sea rápida

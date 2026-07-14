@@ -16,7 +16,8 @@
   window.MENTE_CONFIG = {
     SUPABASE_URL: 'https://ecmenbgaeqvojfcgyjgc.supabase.co',
     SUPABASE_ANON_KEY: 'sb_publishable_tl9yhkWtzYsWk2WC102YNQ_Qq0Tnhut',
-    VAPID_PUBLIC_KEY: 'BHLpzcBBE9GBdyWL5ansmZV_Ej7xY4SOnq7Kdt6HznvDYJnmlgw9tF9jT04d-6EhjQkjLv97h5fJ1DYf8HHYlpo'
+    VAPID_PUBLIC_KEY: 'BHLpzcBBE9GBdyWL5ansmZV_Ej7xY4SOnq7Kdt6HznvDYJnmlgw9tF9jT04d-6EhjQkjLv97h5fJ1DYf8HHYlpo',
+    GOOGLE_CLIENT_ID: '502335844966-fj6lhri6agjb1skb9ksgmr0cf5536hkp.apps.googleusercontent.com'
   };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -868,6 +869,9 @@
 
   <div class="view" id="view-stats">
     <div id="statsWrap"></div>
+    <div class="section-label">Google Calendar</div>
+    <div id="googleCalStatus" style="font-size:13px;color:var(--muted);margin-bottom:12px;">Revisando conexión…</div>
+    <button type="button" class="pillbtn" id="googleConnectBtn" style="border:1px solid var(--line);padding:10px 16px;display:none;">📅 Conectar Google Calendar</button>
     <div class="section-label">Datos</div>
     <button type="button" class="pillbtn" id="exportBtn" style="border:1px solid var(--line);padding:10px 16px;">⬇ Exportar datos (JSON)</button>
   </div>
@@ -1288,6 +1292,61 @@
     tareasSearchQuery = this.value.trim().toLowerCase();
     renderTareas();
   });
+
+  /* ---------- Google Calendar ---------- */
+  function googleRedirectUri() { return window.location.origin + '/'; }
+  document.getElementById('googleConnectBtn').addEventListener('click', function () {
+    var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+      client_id: cfg.GOOGLE_CLIENT_ID,
+      redirect_uri: googleRedirectUri(),
+      response_type: 'code',
+      scope: 'https://www.googleapis.com/auth/calendar.events',
+      access_type: 'offline',
+      prompt: 'consent'
+    });
+    window.location.href = authUrl;
+  });
+  async function refreshGoogleStatus() {
+    var statusEl = document.getElementById('googleCalStatus');
+    var btn = document.getElementById('googleConnectBtn');
+    var res = await sb.from('google_tokens').select('user_id').maybeSingle();
+    if (res.data) {
+      statusEl.textContent = '✓ Conectado — tus tareas con fecha se sincronizan solas cada pocos minutos.';
+      btn.style.display = 'none';
+    } else {
+      statusEl.textContent = 'No conectado todavía.';
+      btn.style.display = 'inline-flex';
+    }
+  }
+  async function handleGoogleOAuthReturn() {
+    var params = new URLSearchParams(window.location.search);
+    var code = params.get('code');
+    if (!code) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    var statusEl = document.getElementById('googleCalStatus');
+    if (statusEl) statusEl.textContent = 'Conectando con Google…';
+    var sessionRes = await sb.auth.getSession();
+    var token = sessionRes.data.session && sessionRes.data.session.access_token;
+    if (!token) return;
+    try {
+      var resp = await fetch(cfg.SUPABASE_URL + '/functions/v1/google-oauth-exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({
+          code: code,
+          redirect_uri: googleRedirectUri(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        })
+      });
+      var data = await resp.json();
+      if (data.ok) { alert('Google Calendar conectado. Tus tareas con fecha se van a sincronizar solas.'); }
+      else { alert('No se pudo conectar con Google: ' + (data.error || 'error desconocido')); }
+    } catch (e) {
+      console.error(e);
+      alert('No se pudo conectar con Google.');
+    }
+    refreshGoogleStatus();
+  }
 
   /* ---------- exportar datos ---------- */
   document.getElementById('exportBtn').addEventListener('click', function () {
@@ -2186,6 +2245,8 @@
     }
     updateStreakUI();
     await loadTasks();
+    await handleGoogleOAuthReturn();
+    refreshGoogleStatus();
   }
   function stopApp() {
     currentUserId = null;
