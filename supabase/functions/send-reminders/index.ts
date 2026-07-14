@@ -3,12 +3,27 @@
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VAPID_PUBLIC = Deno.env.get("VAPID_PUBLIC_KEY")!;
-const VAPID_PRIVATE = Deno.env.get("VAPID_PRIVATE_KEY")!;
+const VAPID_PUBLIC = Deno.env.get("VAPID_PUBLIC_KEY");
+const VAPID_PRIVATE = Deno.env.get("VAPID_PRIVATE_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-webpush.setVapidDetails("mailto:soporte@mente.app", VAPID_PUBLIC, VAPID_PRIVATE);
+// Si faltan los secrets de VAPID, setVapidDetails tira una excepción a nivel de módulo:
+// eso hace que la función entera falle al arrancar (boot error) y ningún request llega
+// nunca al handler ni a su try/catch. Validamos acá para loguear la causa real y
+// responder 500 en vez de dejar que el arranque de la función explote en silencio.
+let vapidError: string | null = null;
+if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+  vapidError = "Faltan los secrets VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY (supabase secrets set ...)";
+  console.error(vapidError);
+} else {
+  try {
+    webpush.setVapidDetails("mailto:soporte@mente.app", VAPID_PUBLIC, VAPID_PRIVATE);
+  } catch (e) {
+    vapidError = `VAPID inválido: ${(e as Error).message}`;
+    console.error(vapidError);
+  }
+}
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
 function nowInTz(tz: string) {
@@ -112,6 +127,10 @@ Deno.serve(async () => {
 });
 
 async function handle() {
+  if (vapidError) {
+    return new Response(JSON.stringify({ error: vapidError }), { status: 500 });
+  }
+
   await ensureRecurringOccurrences();
 
   const { data: reminders, error } = await supabase
