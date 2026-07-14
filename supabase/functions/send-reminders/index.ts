@@ -103,6 +103,15 @@ async function ensureRecurringOccurrences() {
 }
 
 Deno.serve(async () => {
+  try {
+    return await handle();
+  } catch (e) {
+    console.error(e);
+    return new Response(JSON.stringify({ error: "internal_error" }), { status: 500 });
+  }
+});
+
+async function handle() {
   await ensureRecurringOccurrences();
 
   const { data: reminders, error } = await supabase
@@ -158,4 +167,4 @@ Deno.serve(async () => {
   }
 
   return new Response(JSON.stringify({ sent }), { headers: { "Content-Type": "application/json" } });
-});
+}
