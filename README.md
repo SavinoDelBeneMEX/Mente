@@ -134,6 +134,25 @@ Si ya tenías el proyecto funcionando desde antes, hacen falta dos pasos únicos
 Con esto, la misma función que revisa los recordatorios cada minuto también revisa si
 falta crear la próxima ocurrencia de cada tarea recurrente y la genera sola.
 
+## Actualización: fotos por tarea (con opción obligatoria) y Bloc de Notas
+
+Cada tarea puede tener fotos adjuntas (por ejemplo, evidencia de que se hizo), y al crearla
+podés marcarla como "requiere foto para completarla" — si la marcás, el check queda bloqueado
+hasta que subas al menos una imagen. También hay una pestaña nueva, **Notas**, para anotar
+cosas sueltas que no son pendientes.
+
+Si ya tenías el proyecto funcionando desde antes, hacen falta dos pasos únicos:
+
+1. **Correr la migración de base de datos** — en el **SQL Editor** de Supabase, pegá y
+   ejecutá el contenido de `supabase/migration_photos_notes.sql`. Esto agrega las columnas
+   de fotos a `tasks`, crea la tabla `notes` y crea el bucket de Storage `task-photos`
+   (público, ver el comentario en el propio archivo sobre por qué).
+2. Subí el `index.html` actualizado a tu repo/Vercel como siempre (o esperá el deploy
+   automático si ya lo conectaste a GitHub).
+
+No hace falta redesplegar ninguna función ni tocar `supabase/functions/`, esta parte es
+100% frontend + Storage.
+
 ## Notas y límites
 
 - Cada dispositivo/navegador donde tocás "🔔 Recordatorios" queda suscripto por separado — si

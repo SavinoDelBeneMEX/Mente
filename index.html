@@ -578,6 +578,30 @@
     padding: 8px 10px; resize: vertical; min-height: 44px;
   }
   .notes-input:focus { outline: none; border-color: var(--ink); }
+  .detail-label-hint { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--muted); }
+
+  .photo-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .photo-thumb {
+    position: relative; width: 64px; height: 64px; border-radius: 4px; overflow: hidden;
+    border: 1px solid var(--line); flex: none;
+    animation: settle-in var(--dur-2) var(--ease) both;
+  }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-del {
+    position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 2px;
+    background: rgba(18,18,18,0.72); color: #fff; border: none; cursor: pointer;
+    font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    touch-action: manipulation; transition: background .15s var(--ease);
+  }
+  .photo-del:hover { background: rgba(18,18,18,0.9); }
+  .photo-add-btn {
+    width: 64px; height: 64px; border-radius: 4px; border: 1px dashed var(--line);
+    color: var(--faint); font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    cursor: pointer; flex: none; touch-action: manipulation;
+    transition: border-color .15s var(--ease), color .15s var(--ease);
+  }
+  .photo-add-btn:hover { border-color: var(--ink); color: var(--ink); }
 
   .task-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
   .expand-btn, .task-del {
@@ -808,6 +832,50 @@
     background: var(--surface); border: 1px dashed var(--line); border-radius: 4px; padding: 32px 22px;
   }
 
+  /* ---------- bloc de notas ---------- */
+  .note-add {
+    display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px;
+    padding-bottom: 20px; border-bottom: 1px solid var(--line);
+  }
+  .note-add textarea {
+    width: 100%; font-size: 14.5px; font-family: inherit; color: var(--ink);
+    background: var(--surface-sunken); border: 1px solid var(--line); border-radius: 4px;
+    padding: 12px 14px; resize: vertical; min-height: 64px;
+    transition: border-color .15s var(--ease);
+  }
+  .note-add textarea:focus { outline: none; border-color: var(--ink); }
+  .note-add button {
+    align-self: flex-end; background: none; color: var(--ink);
+    border: 1px solid var(--ink); border-radius: 4px; padding: 10px 18px;
+    font-size: 12.5px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
+    cursor: pointer; touch-action: manipulation;
+    transition: background .15s var(--ease), color .15s var(--ease), transform .15s var(--ease);
+  }
+  .note-add button:hover { background: var(--ink); color: var(--bg); transform: translateY(-1px); }
+  .note-list { display: flex; flex-direction: column; gap: 12px; }
+  .note-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 16px 18px;
+    animation: settle-in var(--dur-2) var(--ease) both;
+    transition: border-color .2s var(--ease), transform .2s var(--ease), box-shadow .2s var(--ease);
+  }
+  .note-card:hover { border-color: var(--line-strong); transform: translateY(-1px); box-shadow: var(--shadow-hover); }
+  .note-body {
+    width: 100%; font-size: 14.5px; font-family: inherit; color: var(--ink);
+    background: none; border: none; resize: vertical; padding: 0; min-height: 40px;
+  }
+  .note-body:focus { outline: none; }
+  .note-footer {
+    display: flex; align-items: center; justify-content: space-between; margin-top: 10px;
+    padding-top: 10px; border-top: 1px solid var(--line);
+  }
+  .note-date { font-family: var(--font-mono); font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .note-del {
+    background: none; border: none; color: var(--faint); cursor: pointer;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 0; touch-action: manipulation; transition: color .15s var(--ease);
+  }
+  .note-del:hover { color: var(--bad); }
+
   /* ---------- confetti ---------- */
   .confetti-piece {
     position: fixed; top: 0; left: 0; width: 6px; height: 6px; border-radius: 1px;
@@ -882,6 +950,7 @@
         <input type="time" id="inpTime" />
         <div class="pri-chips" id="priChips"></div>
         <div class="repeat-chips" id="repeatChips"></div>
+        <button type="button" class="chip-select" id="reqPhotoChip">📷 Requiere foto para completarla</button>
       </div>
     </form>
   </div>
@@ -898,6 +967,8 @@
     <span class="tab-divider" aria-hidden="true"></span>
     <button class="tab" data-view="tareas"><span class="tab-icon">📋</span><span class="tab-label">Tareas</span> <span class="count" id="cntTareas">0</span></button>
     <button class="tab" data-view="stats"><span class="tab-icon">📊</span><span class="tab-label">Stats</span></button>
+    <span class="tab-divider" aria-hidden="true"></span>
+    <button class="tab" data-view="notas"><span class="tab-icon">📝</span><span class="tab-label">Notas</span></button>
   </div>
 
   <div class="view active" id="view-hoy">
@@ -952,6 +1023,10 @@
     <div class="section-label">Datos</div>
     <button type="button" class="pillbtn" id="exportBtn" style="border:1px solid var(--line);padding:10px 16px;">⬇ Exportar datos (JSON)</button>
   </div>
+
+  <div class="view" id="view-notas">
+    <div id="notasWrap"></div>
+  </div>
 </div>
 
 <script>
@@ -970,6 +1045,7 @@
   function catInfo(id) { return CATS.find(function (c) { return c.id === id; }) || CATS[0]; }
 
   var tasks = [];
+  var notesData = [];
 
   var streakDays = [];
   try { streakDays = JSON.parse(localStorage.getItem(STREAK_KEY)) || []; } catch (e) { streakDays = []; }
@@ -1039,6 +1115,8 @@
       seriesId: row.series_id || null,
       subtasks: row.subtasks || [],
       notes: row.notes || '',
+      requiresPhoto: !!row.requires_photo,
+      photos: row.photos || [],
       createdAt: row.created_at,
       reminders: (row.reminders || []).map(function (r) {
         return { id: r.id, time: hhmm(r.time), repeat: r.repeat, date: r.date, n: r.n };
@@ -1079,6 +1157,33 @@
   }
   function dbUpdateTask(id, patch) { sb.from('tasks').update(patch).eq('id', id).then(function (r) { if (r.error) console.error(r.error); }); }
   function dbDeleteTask(id) { sb.from('tasks').delete().eq('id', id).then(function (r) { if (r.error) console.error(r.error); }); }
+
+  /* ---------- fotos de tareas (Storage) ---------- */
+  async function uploadTaskPhoto(taskId, file) {
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+    var path = currentUserId + '/' + taskId + '/' + uid() + '.' + ext;
+    var res = await sb.storage.from('task-photos').upload(path, file, { upsert: false, contentType: file.type || 'image/jpeg' });
+    if (res.error) { console.error(res.error); alert('No se pudo subir la foto: ' + res.error.message); return null; }
+    var pub = sb.storage.from('task-photos').getPublicUrl(path);
+    return { path: path, url: pub.data.publicUrl };
+  }
+  async function addTaskPhoto(id, file) {
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    var photo = await uploadTaskPhoto(id, file);
+    if (!photo) return;
+    t.photos = (t.photos || []).concat([photo]);
+    dbUpdateTask(id, { photos: t.photos });
+    renderAll();
+  }
+  function removeTaskPhoto(id, path) {
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    t.photos = (t.photos || []).filter(function (p) { return p.path !== path; });
+    dbUpdateTask(id, { photos: t.photos });
+    sb.storage.from('task-photos').remove([path]).then(function (r) { if (r.error) console.error(r.error); });
+    renderAll();
+  }
   async function dbInsertReminder(taskId, r) {
     var payload = {
       task_id: taskId, user_id: currentUserId, time: r.time, repeat: r.repeat, date: r.date, n: r.n,
@@ -1111,6 +1216,7 @@
   var selectedCat = (prefs.scopeFilter === 'trabajo') ? 'trabajo' : 'personal';
   var selectedPri = 'media';
   var selectedRepeat = 'none';
+  var selectedRequiresPhoto = false;
   var catChipsEl = document.getElementById('catChips');
   catChipsEl.innerHTML = CATS.map(function (c) {
     return '<button type="button" class="chip-select' + (c.id === selectedCat ? ' active' : '') + '" data-cat="' + c.id + '" style="color:' + (c.id === selectedCat ? c.color : '') + '">' +
@@ -1151,6 +1257,12 @@
     selectedRepeat = btn.dataset.rep;
     repeatChipsEl.querySelectorAll('.chip-select').forEach(function (b) { b.classList.toggle('active', b === btn); });
     document.getElementById('repeatNWrap').style.display = selectedRepeat === 'every' ? 'inline-flex' : 'none';
+  });
+
+  var reqPhotoChipEl = document.getElementById('reqPhotoChip');
+  reqPhotoChipEl.addEventListener('click', function () {
+    selectedRequiresPhoto = !selectedRequiresPhoto;
+    reqPhotoChipEl.classList.toggle('active', selectedRequiresPhoto);
   });
 
   document.getElementById('qaMoreToggle').addEventListener('click', function () {
@@ -1329,13 +1441,16 @@
       star: false,
       done: false,
       subtasks: [],
-      repeat: repeat
+      repeat: repeat,
+      requires_photo: selectedRequiresPhoto
     };
     if (newId) { insertFields.id = newId; insertFields.series_id = newId; }
     var inserted = await dbInsertTask(insertFields);
     if (inserted) {
       tasks.push(inserted);
       addSound();
+      selectedRequiresPhoto = false;
+      reqPhotoChipEl.classList.remove('active');
       await ensureTaskReminder(inserted);
     }
     document.getElementById('inpTitle').value = '';
@@ -1451,6 +1566,7 @@
       if (tab.dataset.view === 'mes') renderMes();
       if (tab.dataset.view === 'stats') renderStats();
       if (tab.dataset.view === 'inbox') renderInbox();
+      if (tab.dataset.view === 'notas') renderNotas();
     });
   });
 
@@ -1476,6 +1592,12 @@
   async function toggleDone(id, evt) {
     var t = tasks.find(function (x) { return x.id === id; });
     if (!t) return;
+    if (!t.done && t.requiresPhoto && (!t.photos || t.photos.length === 0)) {
+      alert('Esta tarea necesita al menos una foto antes de poder marcarla como cumplida. Ábrela con ☰ y agrégala en "Fotos".');
+      var panel = document.querySelector('.subtasks[data-owner="' + id + '"]');
+      if (panel) panel.classList.add('open');
+      return;
+    }
     t.done = !t.done;
     renderAll();
     dbUpdateTask(id, { done: t.done });
@@ -1711,7 +1833,15 @@
         '</div>' +
       '</div>' +
       '<div class="detail-label">Notas</div>' +
-      '<textarea class="notes-input" data-action="notes" placeholder="Agregar una nota…" rows="2">' + escapeHtml(t.notes || '') + '</textarea>' +
+      '<textarea class="notes-input" data-action="notes" placeholder="Agregar una nota o un resumen de lo que pasó…" rows="2">' + escapeHtml(t.notes || '') + '</textarea>' +
+      '<div class="detail-label">Fotos' + (t.requiresPhoto ? ' <span class="detail-label-hint">· obligatoria para completarla</span>' : '') + '</div>' +
+      '<div class="photo-grid">' +
+        (t.photos || []).map(function (p) {
+          return '<div class="photo-thumb"><img src="' + escapeHtml(p.url) + '" loading="lazy" alt="Foto de la tarea" />' +
+            '<button type="button" class="photo-del" data-action="photodel" data-path="' + escapeHtml(p.path) + '">×</button></div>';
+        }).join('') +
+        '<label class="photo-add-btn">+ Agregar<input type="file" accept="image/*" data-action="photoinput" hidden /></label>' +
+      '</div>' +
       '</div>';
 
     return '<div class="task' + (t.done ? ' done' : '') + '" data-id="' + t.id + '" style="--cat-color:' + cat.color + '">' +
@@ -1748,6 +1878,14 @@
       if (assignDateBtn) assignDateBtn.addEventListener('click', function () { assignDate(id); });
       var notesInput = row.querySelector('[data-action="notes"]');
       if (notesInput) notesInput.addEventListener('change', function () { updateNotes(id, notesInput.value); });
+      var photoInput = row.querySelector('[data-action="photoinput"]');
+      if (photoInput) photoInput.addEventListener('change', function () {
+        if (photoInput.files && photoInput.files[0]) addTaskPhoto(id, photoInput.files[0]);
+        photoInput.value = '';
+      });
+      row.querySelectorAll('[data-action="photodel"]').forEach(function (btn) {
+        btn.addEventListener('click', function () { removeTaskPhoto(id, btn.dataset.path); });
+      });
       var titleInput = row.querySelector('[data-action="edit"]');
       if (titleInput) titleInput.addEventListener('change', function () { updateTitle(id, titleInput.value); });
       var expandBtn = row.querySelector('[data-action="expand"]');
@@ -1922,6 +2060,74 @@
     list.innerHTML = items.length ? items.map(function (t) { return taskRow(t); }).join('') : '<div class="empty">Tu inbox está vacío. Usa la captura rápida de arriba para anotar ideas sin pensar todavía en la fecha.</div>';
     attachRowHandlers(list);
     document.getElementById('cntInbox').textContent = items.length;
+  }
+
+  /* ---------- Bloc de Notas ---------- */
+  async function loadNotes() {
+    var res = await sb.from('notes').select('*').order('updated_at', { ascending: false });
+    if (res.error) { console.error(res.error); return; }
+    notesData = res.data || [];
+  }
+  function fmtNoteDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+  function noteCard(n) {
+    return '<div class="note-card" data-id="' + n.id + '">' +
+      '<textarea class="note-body" data-action="notebody" rows="3">' + escapeHtml(n.body) + '</textarea>' +
+      '<div class="note-footer"><span class="note-date">' + fmtNoteDate(n.updated_at) + '</span>' +
+      '<button type="button" class="note-del" data-action="notedel">Eliminar</button></div>' +
+      '</div>';
+  }
+  function paintNotas() {
+    var wrap = document.getElementById('notasWrap');
+    wrap.innerHTML =
+      '<div class="note-add">' +
+        '<textarea id="noteNewInput" placeholder="Escribe algo suelto: una idea, un recado, lo que sea…" rows="3"></textarea>' +
+        '<button type="button" id="noteAddBtn">Guardar nota</button>' +
+      '</div>' +
+      '<div class="note-list">' +
+      (notesData.length ? notesData.map(noteCard).join('') : '<div class="empty">Todavía no tienes notas. Escribe la primera arriba.</div>') +
+      '</div>';
+    document.getElementById('noteAddBtn').addEventListener('click', function () {
+      var input = document.getElementById('noteNewInput');
+      addNote(input.value);
+    });
+    document.getElementById('noteNewInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addNote(this.value); }
+    });
+    wrap.querySelectorAll('.note-card').forEach(function (card) {
+      var id = card.dataset.id;
+      var body = card.querySelector('[data-action="notebody"]');
+      body.addEventListener('change', function () { updateNoteBody(id, body.value); });
+      var delBtn = card.querySelector('[data-action="notedel"]');
+      delBtn.addEventListener('click', function () { deleteNote(id); });
+    });
+  }
+  async function renderNotas() {
+    await loadNotes();
+    paintNotas();
+  }
+  async function addNote(body) {
+    if (!body.trim()) return;
+    var res = await sb.from('notes').insert({ user_id: currentUserId, body: body.trim() }).select().single();
+    if (res.error) { console.error(res.error); return; }
+    notesData.unshift(res.data);
+    addSound();
+    paintNotas();
+  }
+  function updateNoteBody(id, body) {
+    var n = notesData.find(function (x) { return x.id === id; });
+    if (!n) return;
+    n.body = body;
+    n.updated_at = new Date().toISOString();
+    sb.from('notes').update({ body: body, updated_at: n.updated_at }).eq('id', id).then(function (r) { if (r.error) console.error(r.error); });
+  }
+  function deleteNote(id) {
+    notesData = notesData.filter(function (x) { return x.id !== id; });
+    paintNotas();
+    deleteSound();
+    sb.from('notes').delete().eq('id', id).then(function (r) { if (r.error) console.error(r.error); });
   }
 
   /* ---------- focus mode / pomodoro ---------- */
@@ -2328,6 +2534,7 @@
   function stopApp() {
     currentUserId = null;
     tasks = [];
+    notesData = [];
     appEl.classList.remove('ready');
     authScreen.style.display = 'flex';
   }
