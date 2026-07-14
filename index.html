@@ -550,6 +550,26 @@
   .mini-time { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; flex: none; }
   .mini-empty { font-size: 12px; color: var(--faint); padding: 4px 2px; }
 
+  /* ---------- stats ---------- */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 8px; }
+  @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
+  .stat-card { border: 1px solid var(--line); border-radius: 4px; padding: 20px; }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin-bottom: 10px; }
+  .stat-value { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .stat-sub { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .stats-bars { display: flex; align-items: flex-end; gap: 14px; padding: 20px 4px 8px; border-bottom: 1px solid var(--line); }
+  .stats-bar-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
+  .stats-bar { width: 100%; max-width: 28px; background: var(--ink); border-radius: 2px 2px 0 0; }
+  .stats-bar-label { font-size: 10.5px; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+  .stats-cat-list { display: flex; flex-direction: column; }
+  .stats-cat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 14px;
+  }
+  .stats-cat-row:last-child { border-bottom: none; }
+  .stats-cat-row span:first-child { font-weight: 500; }
+  .stats-cat-row span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+
   /* ---------- month calendar ---------- */
   .mes-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
   .mes-title { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
@@ -763,6 +783,7 @@
     <button class="tab" data-view="semana"><span class="tab-icon">📅</span><span class="tab-label">Semana</span></button>
     <button class="tab" data-view="mes"><span class="tab-icon">📆</span><span class="tab-label">Mes</span></button>
     <button class="tab" data-view="tareas"><span class="tab-icon">📋</span><span class="tab-label">Tareas</span> <span class="count" id="cntTareas">0</span></button>
+    <button class="tab" data-view="stats"><span class="tab-icon">📊</span><span class="tab-label">Stats</span></button>
   </div>
 
   <div class="view active" id="view-hoy">
@@ -801,6 +822,10 @@
       <button class="filter-btn" data-filter="hechas">Hechas</button>
     </div>
     <div class="task-list" id="tareasList"></div>
+  </div>
+
+  <div class="view" id="view-stats">
+    <div id="statsWrap"></div>
   </div>
 </div>
 
@@ -893,13 +918,30 @@
       })
     };
   }
+  function reminderFieldsFromTaskRepeat(repeat) {
+    if (!repeat) return { repeat: 'once' };
+    if (repeat.type === 'daily') return { repeat: 'daily' };
+    if (repeat.type === 'weekdays') return { repeat: 'weekdays' };
+    if (repeat.type === 'every') return { repeat: 'every', n: repeat.n };
+    return { repeat: 'once' };
+  }
+  async function ensureTaskReminder(t) {
+    if (!t.time) return;
+    var rf = reminderFieldsFromTaskRepeat(t.repeat);
+    var inserted = await dbInsertReminder(t.id, { time: t.time, repeat: rf.repeat, date: t.date, n: rf.n || null });
+    if (inserted) t.reminders.push(inserted);
+  }
   async function loadTasks() {
     var res = await sb.from('tasks').select('*, reminders(*)').order('created_at', { ascending: true });
     if (res.error) { console.error(res.error); return; }
     tasks = (res.data || []).map(rowToTask);
+    var backfills = [];
     tasks.forEach(function (t) {
       if (t.repeat && !t.seriesId) { t.seriesId = t.id; dbUpdateTask(t.id, { series_id: t.id }); }
+      // Repara tareas con fecha y hora que quedaron sin ningún recordatorio (por eso no avisaban).
+      if (t.time && !t.done && t.reminders.length === 0) backfills.push(ensureTaskReminder(t));
     });
+    if (backfills.length) await Promise.all(backfills);
     renderAll();
   }
   async function dbInsertTask(fields) {
@@ -1164,7 +1206,11 @@
     };
     if (newId) { insertFields.id = newId; insertFields.series_id = newId; }
     var inserted = await dbInsertTask(insertFields);
-    if (inserted) { tasks.push(inserted); addSound(); }
+    if (inserted) {
+      tasks.push(inserted);
+      addSound();
+      await ensureTaskReminder(inserted);
+    }
     document.getElementById('inpTitle').value = '';
     document.getElementById('inpTitle').focus();
     renderAll();
@@ -1180,6 +1226,7 @@
       if (tab.dataset.view === 'enfoque') renderFocus();
       if (tab.dataset.view === 'dia') renderDiaPlanner();
       if (tab.dataset.view === 'mes') renderMes();
+      if (tab.dataset.view === 'stats') renderStats();
     });
   });
 
@@ -1257,9 +1304,48 @@
     renderAll();
     dbUpdateTask(id, { time: t.time });
   }
+  function propagateToSeries(seriesId, exceptId, patch) {
+    if (!seriesId) return;
+    tasks.forEach(function (x) {
+      if (x.seriesId === seriesId && !x.done && x.id !== exceptId) Object.assign(x, patch);
+    });
+    sb.from('tasks').update(patch).eq('series_id', seriesId).eq('done', false).neq('id', exceptId)
+      .then(function (r) { if (r.error) console.error(r.error); });
+  }
   function updateTitle(id, value) {
     var t = tasks.find(function (x) { return x.id === id; });
-    if (t && value.trim()) { t.title = value.trim(); dbUpdateTask(id, { title: t.title }); }
+    if (!t || !value.trim()) return;
+    t.title = value.trim();
+    dbUpdateTask(id, { title: t.title });
+    if (t.seriesId) { propagateToSeries(t.seriesId, id, { title: t.title }); renderAll(); }
+  }
+  function syncReminderTimes(t, newTime) {
+    var targets = t.reminders.slice();
+    if (t.seriesId && t.seriesId !== t.id) {
+      var original = tasks.find(function (x) { return x.id === t.seriesId; });
+      if (original) targets = targets.concat(original.reminders);
+    }
+    targets.forEach(function (r) {
+      r.time = newTime;
+      sb.from('reminders').update({ time: newTime }).eq('id', r.id).then(function (res) { if (res.error) console.error(res.error); });
+    });
+  }
+  function editTaskTime(id) {
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    var val = prompt('Nueva hora (HH:MM):', t.time || '');
+    if (val === null) return;
+    val = val.trim();
+    if (!/^\d{1,2}:\d{2}$/.test(val)) { alert('Formato inválido. Usá HH:MM, por ejemplo 09:30.'); return; }
+    var parts = val.split(':');
+    var hh = String(Math.min(23, parseInt(parts[0], 10))).padStart(2, '0');
+    var mm = String(Math.min(59, parseInt(parts[1], 10))).padStart(2, '0');
+    var newTime = hh + ':' + mm;
+    t.time = newTime;
+    dbUpdateTask(id, { time: newTime });
+    syncReminderTimes(t, newTime);
+    if (t.seriesId) propagateToSeries(t.seriesId, id, { time: newTime });
+    renderAll();
   }
   function toggleSubtasks(id) {
     var el = document.querySelector('.subtasks[data-owner="' + id + '"]');
@@ -1332,6 +1418,7 @@
       meta += '<span class="chip time">⏰ ' + t.time + '</span>';
       meta += '<button type="button" class="snooze-btn" data-action="snooze">+15 min</button>';
     }
+    if (t.time) meta += '<button type="button" class="snooze-btn" data-action="edittime">✎ hora</button>';
     if (t.date && t.date !== todayStr) {
       var d = new Date(t.date + 'T00:00:00');
       meta += '<span class="chip time" style="background:var(--surface-sunken);color:var(--muted)">' + d.toLocaleDateString('es-ES', {day:'numeric', month:'short'}) + '</span>';
@@ -1399,6 +1486,8 @@
       if (delBtn) delBtn.addEventListener('click', function () { removeTask(id); });
       var snoozeBtn = row.querySelector('[data-action="snooze"]');
       if (snoozeBtn) snoozeBtn.addEventListener('click', function () { snoozeTask(id); });
+      var editTimeBtn = row.querySelector('[data-action="edittime"]');
+      if (editTimeBtn) editTimeBtn.addEventListener('click', function () { editTaskTime(id); });
       var titleInput = row.querySelector('[data-action="edit"]');
       if (titleInput) titleInput.addEventListener('change', function () { updateTitle(id, titleInput.value); });
       var expandBtn = row.querySelector('[data-action="expand"]');
@@ -1533,12 +1622,30 @@
     });
   }
 
-  function renderTareas() {
-    var filtered = tasks.filter(inScope).sort(function (a, b) {
-      return (a.date || '9999').localeCompare(b.date || '9999') || (a.time||'99:99').localeCompare(b.time||'99:99');
+  function collapseSeriesForList(list) {
+    // Las tareas periódicas se generan como una fila por día (para que Semana/Mes muestren
+    // cada ocurrencia). Acá, en la pestaña Tareas, se muestran como una sola fila editable:
+    // la próxima ocurrencia pendiente de cada serie, no las 60 futuras.
+    var earliestPendingBySeries = {};
+    list.forEach(function (t) {
+      if (t.seriesId && !t.done) {
+        var cur = earliestPendingBySeries[t.seriesId];
+        if (!cur || (t.date || '9999') < (cur.date || '9999')) earliestPendingBySeries[t.seriesId] = t;
+      }
     });
+    return list.filter(function (t) {
+      if (t.seriesId && !t.done) return earliestPendingBySeries[t.seriesId].id === t.id;
+      return true;
+    });
+  }
+  function renderTareas() {
+    var filtered = tasks.filter(inScope);
     if (currentFilter === 'pendientes') filtered = filtered.filter(function (t) { return !t.done; });
     if (currentFilter === 'hechas') filtered = filtered.filter(function (t) { return t.done; });
+    filtered = collapseSeriesForList(filtered);
+    filtered.sort(function (a, b) {
+      return (a.date || '9999').localeCompare(b.date || '9999') || (a.time||'99:99').localeCompare(b.time||'99:99');
+    });
 
     var list = document.getElementById('tareasList');
     list.innerHTML = filtered.length ? filtered.map(function (t) { return taskRow(t); }).join('') : '<div class="empty">No hay tareas en este filtro.</div>';
@@ -1726,7 +1833,7 @@
               priority: 'media', category: (prefs.scopeFilter === 'trabajo' ? 'trabajo' : 'personal'),
               star: false, done: false, subtasks: [], repeat: null
             });
-            if (inserted) { tasks.push(inserted); addSound(); }
+            if (inserted) { tasks.push(inserted); addSound(); await ensureTaskReminder(inserted); }
           }
           renderAll();
         }
@@ -1819,6 +1926,76 @@
     quickInput.addEventListener('blur', function () { commitMesQuick(); });
   }
 
+  /* ---------- estadísticas ---------- */
+  function computeBestStreak() {
+    var set = {};
+    streakDays.forEach(function (d) { set[d] = true; });
+    var dates = Object.keys(set).sort();
+    var best = 0, run = 0, prev = null;
+    dates.forEach(function (d) {
+      if (prev) {
+        var diffDays = Math.round((new Date(d + 'T00:00:00') - new Date(prev + 'T00:00:00')) / 86400000);
+        run = diffDays === 1 ? run + 1 : 1;
+      } else {
+        run = 1;
+      }
+      if (run > best) best = run;
+      prev = d;
+    });
+    return best;
+  }
+  function statCard(label, value, sub) {
+    return '<div class="stat-card"><div class="stat-label">' + label + '</div>' +
+      '<div class="stat-value">' + value + '</div><div class="stat-sub">' + sub + '</div></div>';
+  }
+  function pct(done, total) { return total ? Math.round(done / total * 100) : 0; }
+  function renderStats() {
+    var wrap = document.getElementById('statsWrap');
+    var scoped = tasks.filter(inScope);
+    var hoyAll = scoped.filter(function (t) { return t.date === todayStr; });
+    var hoyDone = hoyAll.filter(function (t) { return t.done; }).length;
+
+    var monday = startOfWeek(new Date());
+    var weekDates = [];
+    for (var i = 0; i < 7; i++) { var d = new Date(monday); d.setDate(monday.getDate() + i); weekDates.push(isoFromDate(d)); }
+    var weekTasks = scoped.filter(function (t) { return weekDates.indexOf(t.date) !== -1; });
+    var weekDone = weekTasks.filter(function (t) { return t.done; }).length;
+
+    var perDay = weekDates.map(function (iso) {
+      var dayTasks = scoped.filter(function (t) { return t.date === iso; });
+      return { iso: iso, done: dayTasks.filter(function (t) { return t.done; }).length, total: dayTasks.length };
+    });
+    var maxDone = Math.max.apply(null, perDay.map(function (d) { return d.done; }).concat([1]));
+
+    var byCat = {};
+    CATS.forEach(function (c) { byCat[c.id] = { done: 0, total: 0 }; });
+    weekTasks.forEach(function (t) {
+      if (byCat[t.category]) { byCat[t.category].total++; if (t.done) byCat[t.category].done++; }
+    });
+
+    var html = '<div class="stats-grid">' +
+      statCard('Hoy', hoyDone + ' / ' + hoyAll.length, pct(hoyDone, hoyAll.length) + '% completado') +
+      statCard('Esta semana', weekDone + ' / ' + weekTasks.length, pct(weekDone, weekTasks.length) + '% completado') +
+      statCard('Racha', currentStreak() + (currentStreak() === 1 ? ' día' : ' días'), 'Mejor racha: ' + computeBestStreak() + ' días') +
+      '</div>';
+
+    html += '<div class="section-label">Últimos 7 días</div>';
+    html += '<div class="stats-bars">' + perDay.map(function (d) {
+      var date = new Date(d.iso + 'T00:00:00');
+      var h = d.total ? Math.max(6, Math.round(d.done / maxDone * 64)) : 4;
+      return '<div class="stats-bar-col"><div class="stats-bar" style="height:' + h + 'px" title="' + d.done + '/' + d.total + '"></div>' +
+        '<div class="stats-bar-label">' + fmtDay(date) + '</div></div>';
+    }).join('') + '</div>';
+
+    html += '<div class="section-label">Por categoría esta semana</div>';
+    html += '<div class="stats-cat-list">' + CATS.map(function (c) {
+      var b = byCat[c.id];
+      return '<div class="stats-cat-row"><span>' + c.icon + ' ' + c.label + '</span><span>' + b.done + '/' + b.total + ' (' + pct(b.done, b.total) + '%)</span></div>';
+    }).join('') + '</div>';
+
+    wrap.innerHTML = html;
+  }
+
   function renderAll() {
     renderHoy();
     renderSemana();
@@ -1826,6 +2003,7 @@
     if (document.getElementById('view-enfoque').classList.contains('active')) renderFocus();
     if (document.getElementById('view-dia').classList.contains('active')) renderDiaPlanner();
     if (document.getElementById('view-mes').classList.contains('active')) renderMes();
+    if (document.getElementById('view-stats').classList.contains('active')) renderStats();
   }
 
   /* ---------- auth ---------- */
