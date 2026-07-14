@@ -885,6 +885,35 @@
   @keyframes confetti-fall {
     to { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
   }
+
+  /* ---------- toast compartir ---------- */
+  .share-toast {
+    position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); border-radius: 4px;
+    padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+    font-size: 13px; font-weight: 500; box-shadow: var(--shadow-hover);
+    z-index: 80; max-width: calc(100vw - 32px);
+    animation: toast-in var(--dur-3) var(--ease) both;
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translate(-50%, 12px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .share-toast-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+  .share-toast-btn {
+    background: var(--bg); color: var(--ink); border: none; border-radius: 4px;
+    padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer; flex: none;
+    touch-action: manipulation; transition: opacity .15s;
+  }
+  .share-toast-btn:hover { opacity: 0.85; }
+  .share-toast-close {
+    background: none; border: none; color: var(--bg); opacity: 0.6; cursor: pointer;
+    font-size: 16px; padding: 0 2px; flex: none; touch-action: manipulation;
+  }
+  .share-toast-close:hover { opacity: 1; }
+  @media (max-width: 640px) {
+    .share-toast { bottom: calc(env(safe-area-inset-bottom) + 82px); }
+  }
 </style>
 </head>
 <body>
@@ -1358,6 +1387,50 @@
     }
   }
 
+  /* ---------- compartir ---------- */
+  async function shareTask(id) {
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    var text = '✅ ' + t.title + (t.notes ? '\n\n' + t.notes : '');
+    var shareData = { title: 'Mente', text: text };
+    if (window.navigator.share && window.navigator.canShare && t.photos && t.photos.length) {
+      try {
+        var files = [];
+        for (var i = 0; i < Math.min(t.photos.length, 4); i++) {
+          var res = await fetch(t.photos[i].url);
+          var blob = await res.blob();
+          var ext = (t.photos[i].path.split('.').pop() || 'jpg');
+          files.push(new File([blob], 'foto' + (i + 1) + '.' + ext, { type: blob.type || 'image/jpeg' }));
+        }
+        if (window.navigator.canShare({ files: files })) shareData.files = files;
+      } catch (e) { console.error(e); }
+    }
+    if (window.navigator.share) {
+      try { await window.navigator.share(shareData); } catch (e) { /* el usuario canceló, no hacer nada */ }
+    } else if (window.navigator.clipboard) {
+      try { await window.navigator.clipboard.writeText(text); alert('Tu navegador no soporta compartir directo — copié el texto al portapapeles.'); }
+      catch (e) { alert(text); }
+    } else {
+      alert(text);
+    }
+  }
+  function showShareToast(id) {
+    var existing = document.querySelector('.share-toast');
+    if (existing) existing.remove();
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    var el = document.createElement('div');
+    el.className = 'share-toast';
+    el.innerHTML =
+      '<span class="share-toast-text">✓ "' + escapeHtml(t.title) + '" completada</span>' +
+      '<button type="button" class="share-toast-btn" data-action="sharetoast">📤 Compartir</button>' +
+      '<button type="button" class="share-toast-close" aria-label="Cerrar">×</button>';
+    document.body.appendChild(el);
+    el.querySelector('[data-action="sharetoast"]').addEventListener('click', function () { shareTask(id); el.remove(); });
+    el.querySelector('.share-toast-close').addEventListener('click', function () { el.remove(); });
+    setTimeout(function () { if (el.parentNode) el.remove(); }, 6000);
+  }
+
   /* ---------- streak ---------- */
   function markStreakToday() {
     if (streakDays.indexOf(todayStr) === -1) { streakDays.push(todayStr); saveStreak(); }
@@ -1606,6 +1679,7 @@
       chime();
       var rect = evt && evt.target ? evt.target.getBoundingClientRect() : { left: window.innerWidth/2, top: window.innerHeight/2, width: 0, height: 0 };
       confettiBurst(rect.left + rect.width/2, rect.top + rect.height/2);
+      showShareToast(id);
       if (t.repeat && t.date && t.seriesId) {
         var nextDate = nextRepeatDate(t.date, t.repeat);
         if (nextDate) {
@@ -1658,16 +1732,20 @@
     sb.from('tasks').update(patch).eq('series_id', seriesId).eq('done', false).neq('id', exceptId)
       .then(function (r) { if (r.error) console.error(r.error); });
   }
+  function confirmSeriesPropagation() {
+    return confirm('Esta tarea se repite. ¿Aplicar este cambio también a las tareas siguientes de la serie?');
+  }
   function updateTitle(id, value) {
     var t = tasks.find(function (x) { return x.id === id; });
     if (!t || !value.trim()) return;
     t.title = value.trim();
     dbUpdateTask(id, { title: t.title });
-    if (t.seriesId) { propagateToSeries(t.seriesId, id, { title: t.title }); renderAll(); }
+    if (t.seriesId && confirmSeriesPropagation()) { propagateToSeries(t.seriesId, id, { title: t.title }); }
+    renderAll();
   }
-  function syncReminderTimes(t, newTime) {
+  function syncReminderTimes(t, newTime, propagate) {
     var targets = t.reminders.slice();
-    if (t.seriesId && t.seriesId !== t.id) {
+    if (propagate && t.seriesId && t.seriesId !== t.id) {
       var original = tasks.find(function (x) { return x.id === t.seriesId; });
       if (original) targets = targets.concat(original.reminders);
     }
@@ -1689,8 +1767,9 @@
     var newTime = hh + ':' + mm;
     t.time = newTime;
     dbUpdateTask(id, { time: newTime });
-    syncReminderTimes(t, newTime);
-    if (t.seriesId) propagateToSeries(t.seriesId, id, { time: newTime });
+    var propagate = !!(t.seriesId && confirmSeriesPropagation());
+    syncReminderTimes(t, newTime, propagate);
+    if (propagate) propagateToSeries(t.seriesId, id, { time: newTime });
     renderAll();
   }
   function updateNotes(id, value) {
@@ -1855,7 +1934,9 @@
         subProgress +
         subtasksHtml +
       '</div>' +
-      '<div class="task-actions"><button type="button" class="expand-btn" data-action="expand" title="Subtareas">☰</button><button type="button" class="task-del" data-action="del">×</button></div>' +
+      '<div class="task-actions">' +
+        (t.done ? '<button type="button" class="expand-btn" data-action="share" title="Compartir">📤</button>' : '') +
+        '<button type="button" class="expand-btn" data-action="expand" title="Subtareas">☰</button><button type="button" class="task-del" data-action="del">×</button></div>' +
       '</div>';
   }
 
@@ -1890,6 +1971,8 @@
       if (titleInput) titleInput.addEventListener('change', function () { updateTitle(id, titleInput.value); });
       var expandBtn = row.querySelector('[data-action="expand"]');
       if (expandBtn) expandBtn.addEventListener('click', function () { toggleSubtasks(id); });
+      var shareBtn = row.querySelector('[data-action="share"]');
+      if (shareBtn) shareBtn.addEventListener('click', function () { shareTask(id); });
       var subAdd = row.querySelector('[data-action="subadd"]');
       var subInput = row.querySelector('[data-action="subinput"]');
       if (subAdd && subInput) {
@@ -2022,18 +2105,22 @@
 
   function collapseSeriesForList(list) {
     // Las tareas periódicas se generan como una fila por día (para que Semana/Mes muestren
-    // cada ocurrencia). Acá, en la pestaña Tareas, se muestran como una sola fila editable:
-    // la próxima ocurrencia pendiente de cada serie, no las 60 futuras.
-    var earliestPendingBySeries = {};
+    // cada ocurrencia, y Stats cuente cada cumplimiento real). Acá, y para el contador de la
+    // pestaña, se muestran/cuentan como una sola fila por serie: la próxima ocurrencia
+    // pendiente si hay alguna, si no la más reciente hecha — nunca las 60 futuras sueltas.
+    var bestBySeries = {};
     list.forEach(function (t) {
-      if (t.seriesId && !t.done) {
-        var cur = earliestPendingBySeries[t.seriesId];
-        if (!cur || (t.date || '9999') < (cur.date || '9999')) earliestPendingBySeries[t.seriesId] = t;
-      }
+      if (!t.seriesId) return;
+      var cur = bestBySeries[t.seriesId];
+      if (!cur) { bestBySeries[t.seriesId] = t; return; }
+      if (!t.done && cur.done) { bestBySeries[t.seriesId] = t; return; }
+      if (t.done && !cur.done) return;
+      if (!t.done) { if ((t.date || '9999') < (cur.date || '9999')) bestBySeries[t.seriesId] = t; }
+      else { if ((t.date || '') > (cur.date || '')) bestBySeries[t.seriesId] = t; }
     });
     return list.filter(function (t) {
-      if (t.seriesId && !t.done) return earliestPendingBySeries[t.seriesId].id === t.id;
-      return true;
+      if (!t.seriesId) return true;
+      return bestBySeries[t.seriesId].id === t.id;
     });
   }
   function renderTareas() {
@@ -2049,7 +2136,7 @@
     var list = document.getElementById('tareasList');
     list.innerHTML = filtered.length ? filtered.map(function (t) { return taskRow(t); }).join('') : '<div class="empty">No hay tareas en este filtro.</div>';
     attachRowHandlers(list);
-    document.getElementById('cntTareas').textContent = tasks.filter(function (t) { return !t.done && inScope(t); }).length;
+    document.getElementById('cntTareas').textContent = collapseSeriesForList(tasks.filter(function (t) { return !t.done && inScope(t); })).length;
   }
 
   /* ---------- inbox ---------- */
