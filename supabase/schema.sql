@@ -16,6 +16,7 @@ create table if not exists public.tasks (
   repeat jsonb,
   series_id uuid,                        -- agrupa todas las ocurrencias de una misma tarea recurrente
   subtasks jsonb not null default '[]'::jsonb,
+  notes text,
   created_at timestamptz not null default now()
 );
 

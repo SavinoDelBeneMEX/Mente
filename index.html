@@ -191,6 +191,30 @@
   .scope-btn:hover { color: var(--ink); }
   .scope-btn.active { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
 
+  /* ---------- inbox quick capture ---------- */
+  .inbox-quickadd {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line);
+  }
+  .inbox-quickadd input {
+    flex: 1; min-width: 0; background: none; border: none; border-bottom: 1px solid var(--line);
+    padding: 8px 2px; font-size: 14px; color: var(--ink); font-family: inherit;
+  }
+  .inbox-quickadd input:focus { outline: none; border-bottom-color: var(--ink); }
+  .inbox-quickadd button {
+    background: none; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 4px; padding: 8px 14px; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.02em; cursor: pointer; flex: none; touch-action: manipulation;
+    transition: border-color .15s, color .15s;
+  }
+  .inbox-quickadd button:hover { border-color: var(--ink); color: var(--ink); }
+  .inbox-hint { font-size: 13px; color: var(--muted); margin: 0 0 20px; max-width: 52ch; }
+  .tareas-search {
+    width: 100%; background: none; border: none; border-bottom: 1px solid var(--line);
+    padding: 10px 2px; font-size: 15px; color: var(--ink); font-family: inherit; margin-bottom: 20px;
+  }
+  .tareas-search:focus { outline: none; border-bottom-color: var(--ink); }
+
   /* ---------- quick add ---------- */
   .quickadd {
     background: var(--surface);
@@ -498,6 +522,12 @@
   }
   .detail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 12px 0 6px; }
   .detail-label:first-child { margin-top: 0; }
+  .notes-input {
+    width: 100%; font-size: 13.5px; font-family: inherit; color: var(--ink);
+    background: var(--surface-sunken); border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px 10px; resize: vertical; min-height: 44px;
+  }
+  .notes-input:focus { outline: none; border-color: var(--ink); }
 
   .task-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
   .expand-btn, .task-del {
@@ -759,6 +789,11 @@
     <button type="button" class="scope-btn" data-scope="trabajo">💼 Trabajo</button>
   </div>
 
+  <div class="inbox-quickadd">
+    <input type="text" id="inboxQuickInput" placeholder="Captura rápida, sin decidir nada todavía…" autocomplete="off" />
+    <button type="button" id="inboxQuickBtn">+ Inbox</button>
+  </div>
+
   <div class="quickadd">
     <form id="addForm">
       <div class="qa-main">
@@ -778,6 +813,7 @@
 
   <div class="tabs">
     <button class="tab active" data-view="hoy"><span class="tab-icon">☀️</span><span class="tab-label">Hoy</span> <span class="count" id="cntHoy">0</span></button>
+    <button class="tab" data-view="inbox"><span class="tab-icon">📥</span><span class="tab-label">Inbox</span> <span class="count" id="cntInbox">0</span></button>
     <button class="tab" data-view="dia"><span class="tab-icon">🗓️</span><span class="tab-label">Día</span></button>
     <button class="tab" data-view="enfoque"><span class="tab-icon">🎯</span><span class="tab-label">Enfoque</span></button>
     <button class="tab" data-view="semana"><span class="tab-icon">📅</span><span class="tab-label">Semana</span></button>
@@ -799,6 +835,11 @@
     <div class="task-list" id="hoyList"></div>
   </div>
 
+  <div class="view" id="view-inbox">
+    <p class="inbox-hint">Todo lo que capturás acá queda sin fecha hasta que lo proceses: asignale un día con "→ Hoy" o "📅 Fecha".</p>
+    <div class="task-list" id="inboxList"></div>
+  </div>
+
   <div class="view" id="view-dia">
     <div id="diaWrap"></div>
   </div>
@@ -816,6 +857,7 @@
   </div>
 
   <div class="view" id="view-tareas">
+    <input type="text" id="tareasSearchInput" class="tareas-search" placeholder="Buscar tareas…" autocomplete="off" />
     <div class="filters" id="filters">
       <button class="filter-btn active" data-filter="todas">Todas</button>
       <button class="filter-btn" data-filter="pendientes">Pendientes</button>
@@ -826,6 +868,8 @@
 
   <div class="view" id="view-stats">
     <div id="statsWrap"></div>
+    <div class="section-label">Datos</div>
+    <button type="button" class="pillbtn" id="exportBtn" style="border:1px solid var(--line);padding:10px 16px;">⬇ Exportar datos (JSON)</button>
   </div>
 </div>
 
@@ -913,6 +957,8 @@
       repeat: row.repeat || null,
       seriesId: row.series_id || null,
       subtasks: row.subtasks || [],
+      notes: row.notes || '',
+      createdAt: row.created_at,
       reminders: (row.reminders || []).map(function (r) {
         return { id: r.id, time: hhmm(r.time), repeat: r.repeat, date: r.date, n: r.n };
       })
@@ -1216,6 +1262,47 @@
     renderAll();
   });
 
+  /* ---------- inbox: captura rápida ---------- */
+  async function captureToInbox() {
+    var input = document.getElementById('inboxQuickInput');
+    var title = input.value.trim();
+    if (!title) return;
+    var inserted = await dbInsertTask({
+      title: title, date: null, time: null, priority: 'media',
+      category: (prefs.scopeFilter === 'trabajo' ? 'trabajo' : 'personal'),
+      star: false, done: false, subtasks: [], repeat: null
+    });
+    if (inserted) { tasks.push(inserted); addSound(); }
+    input.value = '';
+    input.focus();
+    renderAll();
+  }
+  document.getElementById('inboxQuickBtn').addEventListener('click', captureToInbox);
+  document.getElementById('inboxQuickInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); captureToInbox(); }
+  });
+
+  /* ---------- buscador de tareas ---------- */
+  var tareasSearchQuery = '';
+  document.getElementById('tareasSearchInput').addEventListener('input', function () {
+    tareasSearchQuery = this.value.trim().toLowerCase();
+    renderTareas();
+  });
+
+  /* ---------- exportar datos ---------- */
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    var payload = JSON.stringify(tasks, null, 2);
+    var blob = new Blob([payload], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'mente-export-' + todayStr + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
   /* ---------- tabs ---------- */
   document.querySelectorAll('.tab').forEach(function (tab) {
     tab.addEventListener('click', function () {
@@ -1227,6 +1314,7 @@
       if (tab.dataset.view === 'dia') renderDiaPlanner();
       if (tab.dataset.view === 'mes') renderMes();
       if (tab.dataset.view === 'stats') renderStats();
+      if (tab.dataset.view === 'inbox') renderInbox();
     });
   });
 
@@ -1347,6 +1435,30 @@
     if (t.seriesId) propagateToSeries(t.seriesId, id, { time: newTime });
     renderAll();
   }
+  function updateNotes(id, value) {
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    t.notes = value;
+    dbUpdateTask(id, { notes: value });
+  }
+  function assignToday(id) {
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    t.date = todayStr;
+    dbUpdateTask(id, { date: todayStr });
+    renderAll();
+  }
+  function assignDate(id) {
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    var val = prompt('Fecha (AAAA-MM-DD):', todayStr);
+    if (val === null) return;
+    val = val.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) { alert('Formato inválido. Usá AAAA-MM-DD, por ejemplo 2026-07-20.'); return; }
+    t.date = val;
+    dbUpdateTask(id, { date: val });
+    renderAll();
+  }
   function toggleSubtasks(id) {
     var el = document.querySelector('.subtasks[data-owner="' + id + '"]');
     if (el) el.classList.toggle('open');
@@ -1426,6 +1538,10 @@
     if (t.reminders && t.reminders.length) {
       meta += '<span class="chip time">🔔 ' + t.reminders.length + '</span>';
     }
+    if (!t.date) {
+      meta += '<button type="button" class="snooze-btn" data-action="assigntoday">→ Hoy</button>' +
+        '<button type="button" class="snooze-btn" data-action="assigndate">📅 Fecha</button>';
+    }
     var subDone = t.subtasks.filter(function (s) { return s.done; }).length;
     var subTotal = t.subtasks.length;
     var subProgress = subTotal ? '<div class="subtask-progress"><span>' + subDone + '/' + subTotal + ' pasos</span><span class="subtask-bar"><span class="subtask-bar-fill" style="width:' + Math.round(subDone/subTotal*100) + '%"></span></span></div>' : '';
@@ -1458,6 +1574,8 @@
           '<button type="button" data-action="remadd">🔔 Agregar</button>' +
         '</div>' +
       '</div>' +
+      '<div class="detail-label">Notas</div>' +
+      '<textarea class="notes-input" data-action="notes" placeholder="Agregar una nota…" rows="2">' + escapeHtml(t.notes || '') + '</textarea>' +
       '</div>';
 
     return '<div class="task' + (t.done ? ' done' : '') + '" data-id="' + t.id + '" style="--cat-color:' + cat.color + '">' +
@@ -1488,6 +1606,12 @@
       if (snoozeBtn) snoozeBtn.addEventListener('click', function () { snoozeTask(id); });
       var editTimeBtn = row.querySelector('[data-action="edittime"]');
       if (editTimeBtn) editTimeBtn.addEventListener('click', function () { editTaskTime(id); });
+      var assignTodayBtn = row.querySelector('[data-action="assigntoday"]');
+      if (assignTodayBtn) assignTodayBtn.addEventListener('click', function () { assignToday(id); });
+      var assignDateBtn = row.querySelector('[data-action="assigndate"]');
+      if (assignDateBtn) assignDateBtn.addEventListener('click', function () { assignDate(id); });
+      var notesInput = row.querySelector('[data-action="notes"]');
+      if (notesInput) notesInput.addEventListener('change', function () { updateNotes(id, notesInput.value); });
       var titleInput = row.querySelector('[data-action="edit"]');
       if (titleInput) titleInput.addEventListener('change', function () { updateTitle(id, titleInput.value); });
       var expandBtn = row.querySelector('[data-action="expand"]');
@@ -1642,6 +1766,7 @@
     var filtered = tasks.filter(inScope);
     if (currentFilter === 'pendientes') filtered = filtered.filter(function (t) { return !t.done; });
     if (currentFilter === 'hechas') filtered = filtered.filter(function (t) { return t.done; });
+    if (tareasSearchQuery) filtered = filtered.filter(function (t) { return t.title.toLowerCase().indexOf(tareasSearchQuery) !== -1; });
     filtered = collapseSeriesForList(filtered);
     filtered.sort(function (a, b) {
       return (a.date || '9999').localeCompare(b.date || '9999') || (a.time||'99:99').localeCompare(b.time||'99:99');
@@ -1651,6 +1776,16 @@
     list.innerHTML = filtered.length ? filtered.map(function (t) { return taskRow(t); }).join('') : '<div class="empty">No hay tareas en este filtro.</div>';
     attachRowHandlers(list);
     document.getElementById('cntTareas').textContent = tasks.filter(function (t) { return !t.done && inScope(t); }).length;
+  }
+
+  /* ---------- inbox ---------- */
+  function renderInbox() {
+    var items = tasks.filter(function (t) { return inScope(t) && !t.date && !t.done; })
+      .sort(function (a, b) { return (a.createdAt || '').localeCompare(b.createdAt || ''); });
+    var list = document.getElementById('inboxList');
+    list.innerHTML = items.length ? items.map(function (t) { return taskRow(t); }).join('') : '<div class="empty">Tu inbox está vacío. Usá la captura rápida de arriba para tirar ideas sin pensar en fecha.</div>';
+    attachRowHandlers(list);
+    document.getElementById('cntInbox').textContent = items.length;
   }
 
   /* ---------- focus mode / pomodoro ---------- */
@@ -2000,6 +2135,8 @@
     renderHoy();
     renderSemana();
     renderTareas();
+    document.getElementById('cntInbox').textContent = tasks.filter(function (t) { return inScope(t) && !t.date && !t.done; }).length;
+    if (document.getElementById('view-inbox').classList.contains('active')) renderInbox();
     if (document.getElementById('view-enfoque').classList.contains('active')) renderFocus();
     if (document.getElementById('view-dia').classList.contains('active')) renderDiaPlanner();
     if (document.getElementById('view-mes').classList.contains('active')) renderMes();
