@@ -1340,10 +1340,10 @@
       });
       var data = await resp.json();
       if (data.ok) { alert('Google Calendar conectado. Tus tareas con fecha se van a sincronizar solas.'); }
-      else { alert('No se pudo conectar con Google: ' + (data.error || 'error desconocido')); }
+      else { alert('No se pudo conectar con Google.\n\nHTTP ' + resp.status + '\n' + JSON.stringify(data, null, 2)); }
     } catch (e) {
       console.error(e);
-      alert('No se pudo conectar con Google.');
+      alert('No se pudo conectar con Google (fallo de red).\n\n' + String(e));
     }
     refreshGoogleStatus();
   }
