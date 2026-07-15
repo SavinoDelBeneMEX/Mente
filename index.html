@@ -1598,65 +1598,132 @@
 
   /* ---------- sound ---------- */
   var audioCtx = null;
+  var shimmerBus = null;
   function getAudioCtx() {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      shimmerBus = buildShimmerBus(audioCtx);
+    }
     if (audioCtx.state === 'suspended') audioCtx.resume();
     return audioCtx;
   }
-  function playTone(ctx, t0, freq, startAt, dur, gainPeak, type) {
+  // Un pequeño eco/shimmer compartido (delay con feedback filtrado) al que los sonidos
+  // le mandan una porción de su señal — es lo que hace que dejen de sonar a "beep" seco
+  // de juguete y suenen con un poco de aire/espacio, sin necesitar samples de audio.
+  function buildShimmerBus(ctx) {
+    var input = ctx.createGain();
+    var delay = ctx.createDelay();
+    delay.delayTime.value = 0.17;
+    var feedback = ctx.createGain();
+    feedback.gain.value = 0.32;
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 2600;
+    var wet = ctx.createGain();
+    wet.gain.value = 0.55;
+    input.connect(delay);
+    delay.connect(filter);
+    filter.connect(feedback);
+    feedback.connect(delay);
+    filter.connect(wet);
+    wet.connect(ctx.destination);
+    return input;
+  }
+  function playTone(ctx, t0, freq, startAt, dur, gainPeak, type, opts) {
+    opts = opts || {};
     var osc = ctx.createOscillator();
     var gain = ctx.createGain();
     osc.type = type || 'sine';
     osc.frequency.setValueAtTime(freq, t0 + startAt);
+    if (opts.slideTo) osc.frequency.exponentialRampToValueAtTime(opts.slideTo, t0 + startAt + dur);
+    if (opts.detune) osc.detune.setValueAtTime(opts.detune, t0 + startAt);
     gain.gain.setValueAtTime(0.0001, t0 + startAt);
-    gain.gain.linearRampToValueAtTime(gainPeak, t0 + startAt + 0.015);
+    gain.gain.linearRampToValueAtTime(gainPeak, t0 + startAt + (opts.attack || 0.015));
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + startAt + dur);
-    osc.connect(gain).connect(ctx.destination);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    if (opts.send && shimmerBus) {
+      var send = ctx.createGain();
+      send.gain.value = opts.send;
+      gain.connect(send).connect(shimmerBus);
+    }
     osc.start(t0 + startAt);
-    osc.stop(t0 + startAt + dur + 0.02);
+    osc.stop(t0 + startAt + dur + 0.05);
     return osc;
   }
+  // Acorde mayor cálido con un destello agudo encima — tachar una tarea normal.
   function chime() {
     if (!prefs.sound) return;
     try {
       var ctx = getAudioCtx();
       var t0 = ctx.currentTime;
-      playTone(ctx, t0, 660, 0, 0.22, 0.12, 'triangle');
-      playTone(ctx, t0, 880, 0.09, 0.24, 0.12, 'triangle');
+      playTone(ctx, t0, 523.25, 0, 0.26, 0.1, 'triangle', { send: 0.25 });
+      playTone(ctx, t0, 659.25, 0.05, 0.26, 0.1, 'triangle', { send: 0.25 });
+      playTone(ctx, t0, 783.99, 0.1, 0.3, 0.1, 'triangle', { send: 0.3 });
+      playTone(ctx, t0, 1567.98, 0.16, 0.35, 0.05, 'sine', { send: 0.45 });
     } catch (e) {}
   }
+  // Un "pop" breve y suave — agregar una tarea o un paso nuevo.
   function addSound() {
     if (!prefs.sound) return;
     try {
       var ctx = getAudioCtx();
-      playTone(ctx, ctx.currentTime, 720, 0, 0.1, 0.09, 'sine');
+      var t0 = ctx.currentTime;
+      playTone(ctx, t0, 587.33, 0, 0.1, 0.08, 'sine', { attack: 0.006 });
+      playTone(ctx, t0, 880, 0.045, 0.1, 0.06, 'sine', { attack: 0.006, send: 0.12 });
     } catch (e) {}
   }
+  // Un deslizamiento descendente suave — borrar algo.
   function deleteSound() {
     if (!prefs.sound) return;
     try {
       var ctx = getAudioCtx();
       var t0 = ctx.currentTime;
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(420, t0);
-      osc.frequency.exponentialRampToValueAtTime(160, t0 + 0.16);
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.linearRampToValueAtTime(0.09, t0 + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(t0);
-      osc.stop(t0 + 0.2);
+      playTone(ctx, t0, 380, 0, 0.22, 0.09, 'triangle', { slideTo: 140 });
     } catch (e) {}
   }
+  // Un pequeño arpegio brillante en escala pentatónica — marcar prioridad de hoy.
   function starSound() {
     if (!prefs.sound) return;
     try {
       var ctx = getAudioCtx();
       var t0 = ctx.currentTime;
-      playTone(ctx, t0, 988, 0, 0.16, 0.1, 'triangle');
-      playTone(ctx, t0, 1318.5, 0.06, 0.18, 0.09, 'triangle');
+      var notes = [880, 1108.73, 1318.51, 1760];
+      notes.forEach(function (f, i) { playTone(ctx, t0, f, i * 0.055, 0.16, 0.08, 'triangle', { send: 0.35 }); });
+    } catch (e) {}
+  }
+  // Acorde resuelto más elaborado — se completó un ciclo de Pomodoro completo, no solo una tarea.
+  function pomodoroDoneSound() {
+    if (!prefs.sound) return;
+    try {
+      var ctx = getAudioCtx();
+      var t0 = ctx.currentTime;
+      [392, 493.88, 587.33, 783.99].forEach(function (f, i) {
+        playTone(ctx, t0, f, i * 0.09, 0.5, 0.09, 'triangle', { send: 0.4 });
+      });
+      playTone(ctx, t0, 1567.98, 0.32, 0.5, 0.06, 'sine', { send: 0.55 });
+    } catch (e) {}
+  }
+  // Destello mágico ascendente — el árbol del día floreció.
+  function treeBloomSound() {
+    if (!prefs.sound) return;
+    try {
+      var ctx = getAudioCtx();
+      var t0 = ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach(function (f, i) {
+        playTone(ctx, t0, f, i * 0.07, 0.3, 0.07, 'sine', { send: 0.5, attack: 0.008 });
+      });
+    } catch (e) {}
+  }
+  // Un "toque" cálido seguido de una nota que confirma — alguien más confirmó tu tarea.
+  function confirmSound() {
+    if (!prefs.sound) return;
+    try {
+      var ctx = getAudioCtx();
+      var t0 = ctx.currentTime;
+      playTone(ctx, t0, 220, 0, 0.12, 0.09, 'sine');
+      playTone(ctx, t0, 659.25, 0.1, 0.22, 0.09, 'triangle', { send: 0.3 });
+      playTone(ctx, t0, 987.77, 0.16, 0.26, 0.07, 'triangle', { send: 0.35 });
     } catch (e) {}
   }
   var soundBtn = document.getElementById('soundBtn');
@@ -1737,11 +1804,15 @@
     if (res.error || !res.data) return;
     var t = tasks.find(function (x) { return x.id === id; });
     if (!t) return;
+    var wasConfirmed = !!t.confirmedAt;
     t.done = res.data.done;
     t.confirmedAt = res.data.confirmed_at;
     t.confirmedBy = res.data.confirmed_by;
     renderAll();
-    if (res.data.confirmed_at) markStreakToday();
+    if (res.data.confirmed_at) {
+      markStreakToday();
+      if (!wasConfirmed) confirmSound();
+    }
   }
   function showShareToast(id) {
     var existing = document.querySelector('.share-toast');
@@ -1902,6 +1973,7 @@
       void treeEl.offsetWidth; // fuerza reflow para poder re-disparar la animación
       treeEl.classList.add('popping');
       spawnGrowLeaves(stageEl);
+      if (stage.emoji === '🌸') treeBloomSound();
     } else if (lastGrowStageEmoji === null) {
       treeEl.textContent = stage.emoji;
     }
@@ -2963,7 +3035,7 @@
     pomodoro.timer = setInterval(function () {
       pomodoro.seconds--;
       if (pomodoro.seconds <= 0) {
-        chime();
+        pomodoroDoneSound();
         pomodoro.mode = pomodoro.mode === 'focus' ? 'descanso' : 'focus';
         pomodoro.total = pomodoro.mode === 'focus' ? 25 * 60 : 5 * 60;
         pomodoro.seconds = pomodoro.total;
