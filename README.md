@@ -153,6 +153,19 @@ Si ya tenías el proyecto funcionando desde antes, hacen falta dos pasos únicos
 No hace falta redesplegar ninguna función ni tocar `supabase/functions/`, esta parte es
 100% frontend + Storage.
 
+## Actualización: recordatorios duplicados en tareas repetitivas (bug corregido)
+
+Se detectó un bug donde una tarea repetitiva (diario / días hábiles / cada X días) podía
+mandar la misma notificación decenas de veces de golpe (una por cada ocurrencia futura que
+la función de recordatorios pre-genera, hasta 60 días adelante) en vez de una sola vez. Ya
+está corregido en `index.html` (ahora solo se crea 1 recordatorio por serie, no uno por
+ocurrencia), pero si ya te pasó, tienes recordatorios duplicados guardados en la base.
+
+1. **Correr la limpieza** — en el **SQL Editor** de Supabase, pega y ejecuta el contenido de
+   `supabase/migration_dedupe_reminders.sql`. Borra los duplicados y deja solo 1 recordatorio
+   por serie repetitiva (no toca tareas ni recordatorios de una sola vez).
+2. Sube el `index.html` actualizado como siempre.
+
 ## Notas y límites
 
 - Cada dispositivo/navegador donde tocás "🔔 Recordatorios" queda suscripto por separado — si
