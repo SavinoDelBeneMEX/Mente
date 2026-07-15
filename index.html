@@ -443,6 +443,12 @@
       border-radius: var(--r-lg);
       box-shadow: var(--shadow-hover);
       padding: 6px 4px;
+      /* Safari en iOS reposiciona mal los elementos "fixed" cuando su propia barra de
+         direcciones se oculta/aparece al hacer scroll, causando que esta barra "salte"
+         y tape contenido un instante. Forzarla a su propia capa evita ese salto. */
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+      will-change: transform;
     }
     .tab { flex: 1; flex-direction: column; padding: 7px 2px 6px; font-size: 10px; gap: 2px; border-radius: var(--r-sm); }
     .tab.active { box-shadow: none; background: var(--accent-soft); }
