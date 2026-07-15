@@ -166,6 +166,54 @@ ocurrencia), pero si ya te pasó, tienes recordatorios duplicados guardados en l
    por serie repetitiva (no toca tareas ni recordatorios de una sola vez).
 2. Sube el `index.html` actualizado como siempre.
 
+## Actualización: rediseño Apple, ícono propio, confirmación de un tercero y árbol/bosque
+
+Tres cosas nuevas en esta actualización:
+
+1. **Ícono de la app.** El favicon, el `apple-touch-icon.png` y los íconos del `manifest.json`
+   (192px/512px) ahora usan tu imagen del cerebro en vez del emoji genérico. No requiere nada
+   en Supabase, solo subir los archivos nuevos (`icon-192.png`, `icon-512.png`,
+   `apple-touch-icon.png`, `manifest.json`) junto con el resto.
+
+2. **Confirmación de una tarea por otra persona, sin que esa persona necesite cuenta.** Al
+   crear una tarea podés activar el chip opcional "🤝 Requiere confirmación de alguien más" y
+   escribir quién la va a confirmar. Esa tarea no se puede tachar hasta que la otra persona
+   entra a un link público (`confirm.html?token=...`, generado automáticamente) y toca
+   "Confirmar que se hizo" — ahí sí queda marcada como hecha. El link se manda con el botón
+   "📤 Enviar para confirmar" dentro del detalle de la tarea (usa el mismo selector nativo de
+   compartir que ya usa la app, para mandarlo por WhatsApp o lo que prefieras).
+
+   Esto necesita un Edge Function nueva, **`confirm-task`**, que es la única parte de Supabase
+   que queda abierta al público (sin login) — por diseño solo puede leer/confirmar la tarea
+   puntual cuyo token coincide, nunca la tabla completa.
+
+3. **Árbol del día y bosque.** Nueva pestaña **🌲 Bosque**: tu árbol va creciendo durante el día
+   según el % de tus pendientes de **hoy** que vas completando (con fecha = hoy, sin importar
+   el filtro Personal/Trabajo). Si completas todos antes de que acabe el día, el árbol florece
+   y se "planta" en tu bosque esa noche; si dejas alguno sin completar, se seca. Podés elegir
+   la especie del árbol de hoy (roble, pino, palmera, abeto, cerezo, cactus) desde la misma
+   pestaña. La evaluación de "¿cumplí ayer?" corre sola la primera vez que abres la app cada
+   día — no hace falta ningún cron nuevo.
+
+Pasos para actualizar un proyecto que ya tenías funcionando:
+
+1. **Correr la migración de base de datos** — en el **SQL Editor** de Supabase, pega y ejecuta
+   el contenido de `supabase/migration_confirmation_forest.sql`. Agrega las columnas de
+   confirmación a `tasks` y crea la tabla `tree_days`.
+2. **Desplegar el Edge Function nuevo**:
+   ```
+   supabase functions deploy confirm-task --no-verify-jwt
+   ```
+   (`--no-verify-jwt` es clave: sin eso, Supabase exige un usuario logueado para llamar la
+   función, y la persona que confirma la tarea justamente no tiene cuenta. La función igual
+   solo expone la fila puntual del token, nunca datos de otras tareas ni de otros usuarios.)
+3. Sube `index.html`, `confirm.html`, `vercel.json` y los íconos actualizados a tu repo/Vercel
+   como siempre.
+
+`vercel.json` desactiva las "clean URLs" a propósito: sin eso, algunos hostings reescriben
+`/confirm.html?token=...` a `/confirm` y en el camino pierden el `?token=...`, lo que rompería
+todos los links de confirmación ya enviados.
+
 ## Notas y límites
 
 - Cada dispositivo/navegador donde tocás "🔔 Recordatorios" queda suscripto por separado — si

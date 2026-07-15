@@ -40,6 +40,8 @@
     --accent-soft-line: rgba(0,122,255,0.4);
     --bad: #ff3b30;
     --bad-soft: rgba(255,59,48,0.12);
+    --good: #34c759;
+    --good-soft: rgba(52,199,89,0.12);
     --shadow: 0 1px 2px rgba(30,30,35,0.04), 0 1px 1px rgba(30,30,35,0.03);
     --shadow-lg: 0 2px 10px rgba(30,30,35,0.06);
     --shadow-hover: 0 14px 34px -10px rgba(30,30,35,0.18);
@@ -75,6 +77,8 @@
       --accent-soft-line: rgba(10,132,255,0.45);
       --bad: #ff453a;
       --bad-soft: rgba(255,69,58,0.18);
+      --good: #30d158;
+      --good-soft: rgba(48,209,88,0.18);
       --shadow: 0 1px 2px rgba(0,0,0,0.5);
       --shadow-lg: 0 2px 12px rgba(0,0,0,0.55);
       --shadow-hover: 0 16px 38px -10px rgba(0,0,0,0.6);
@@ -371,6 +375,12 @@
   .chip-select .dot { display: none; }
   .chip-select.active { color: var(--accent); border-color: var(--accent-soft-line); background: var(--accent-soft); font-weight: 600; }
   .chip-select[data-pri="alta"].active { color: var(--bad); background: var(--bad-soft); border-color: var(--bad); }
+  .confirm-person-input {
+    flex: 1; min-width: 180px; background: var(--surface-sunken); border: 1px solid var(--line);
+    border-radius: var(--r-pill); padding: 8px 14px; font-size: 12.5px; color: var(--ink); font-family: inherit;
+    transition: border-color .15s var(--ease);
+  }
+  .confirm-person-input:focus { outline: none; border-color: var(--accent); }
 
   .today-date { font-size: 13px; color: var(--muted); text-transform: capitalize; }
 
@@ -530,6 +540,24 @@
   .check:active { transform: scale(0.88); }
   .task.done .check { background: var(--accent); border-color: var(--accent); animation: stamp .4s var(--ease-stamp); }
   .mit-card.done .check { background: var(--accent); border-color: var(--accent); animation: stamp .4s var(--ease-stamp); }
+  .check.locked { cursor: not-allowed; border-style: dashed; color: var(--faint); font-size: 10px; }
+  .check.locked:hover { border-color: var(--faint); }
+  .check.locked:active { transform: none; }
+
+  .confirm-status {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: var(--r-pill); margin-top: 6px;
+  }
+  .confirm-status.pending { color: var(--accent2); background: rgba(255,149,0,0.13); }
+  .confirm-status.done { color: var(--good); background: var(--good-soft); }
+  .confirm-send-btn {
+    background: var(--accent-soft); color: var(--accent); border: none; border-radius: var(--r-pill);
+    padding: 8px 14px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 8px;
+    display: inline-flex; align-items: center; gap: 6px; touch-action: manipulation;
+    transition: opacity .15s, transform .12s var(--ease);
+  }
+  .confirm-send-btn:hover { opacity: 0.85; }
+  .confirm-send-btn:active { transform: scale(0.95); }
 
   .task-body { flex: 1; min-width: 0; }
   .task-title-row { display: flex; align-items: center; gap: 6px; }
@@ -983,6 +1011,54 @@
   @media (max-width: 640px) {
     .share-toast { bottom: calc(env(safe-area-inset-bottom) + 92px); }
   }
+
+  /* ---------- bosque ---------- */
+  .grow-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg); padding: 32px 24px; text-align: center; margin-bottom: 24px;
+    animation: settle-in var(--dur-3) var(--ease) both;
+  }
+  .grow-tree {
+    font-size: 64px; line-height: 1; margin-bottom: 10px; display: inline-block;
+    transition: transform .5s var(--ease-stamp), opacity .4s var(--ease), filter .4s var(--ease);
+  }
+  .grow-label { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+  .grow-sub { font-size: 12.5px; color: var(--muted); }
+  .grow-bar { width: 100%; max-width: 260px; height: 6px; border-radius: var(--r-pill); background: var(--surface-sunken); overflow: hidden; margin: 16px auto 0; }
+  .grow-bar-fill { height: 100%; background: var(--accent); border-radius: var(--r-pill); transition: width .5s var(--ease); }
+  .species-picker { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+  .species-btn {
+    width: 46px; height: 46px; border-radius: var(--r-md); border: 1.5px solid var(--line);
+    background: var(--surface-sunken); font-size: 22px; cursor: pointer; touch-action: manipulation;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color .15s var(--ease), transform .12s var(--ease), background .15s var(--ease);
+  }
+  .species-btn:hover { border-color: var(--line-strong); }
+  .species-btn:active { transform: scale(0.92); }
+  .species-btn.active { border-color: var(--accent); background: var(--accent-soft); transform: scale(1.06); }
+
+  .forest-stats { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+  .forest-stat { flex: 1; min-width: 110px; text-align: center; }
+  .forest-stat-value { font-family: var(--font-display); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .forest-stat-label { font-size: 11.5px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+
+  .forest-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px;
+  }
+  .forest-tile {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: 10px 6px 8px; text-align: center; box-shadow: var(--shadow);
+    animation: cascade-in var(--dur-2) var(--ease) both;
+    transition: transform .16s var(--ease), box-shadow .16s var(--ease);
+  }
+  .forest-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+  .forest-tile .tile-emoji { font-size: 26px; display: block; }
+  .forest-tile.dead .tile-emoji { filter: grayscale(1); opacity: 0.55; }
+  .forest-tile .tile-date { font-size: 9.5px; color: var(--faint); font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .forest-empty {
+    color: var(--faint); font-size: 13.5px; padding: 30px 4px; text-align: center;
+    border: 1.5px dashed var(--line-strong); border-radius: var(--r-md);
+  }
 </style>
 </head>
 <body>
@@ -1049,6 +1125,8 @@
         <div class="pri-chips" id="priChips"></div>
         <div class="repeat-chips" id="repeatChips"></div>
         <button type="button" class="chip-select" id="reqPhotoChip">📷 Requiere foto para completarla</button>
+        <button type="button" class="chip-select" id="reqConfirmChip">🤝 Requiere confirmación de alguien más</button>
+        <input type="text" id="confirmPersonInput" class="confirm-person-input" placeholder="¿Quién la va a confirmar? (opcional)" autocomplete="off" style="display:none;" />
       </div>
     </form>
   </div>
@@ -1067,6 +1145,7 @@
     <button class="tab" data-view="stats"><span class="tab-icon">📊</span><span class="tab-label">Stats</span></button>
     <span class="tab-divider" aria-hidden="true"></span>
     <button class="tab" data-view="notas"><span class="tab-icon">📝</span><span class="tab-label">Notas</span></button>
+    <button class="tab" data-view="bosque"><span class="tab-icon">🌲</span><span class="tab-label">Bosque</span></button>
   </div>
 
   <div class="view active" id="view-hoy">
@@ -1125,6 +1204,10 @@
   <div class="view" id="view-notas">
     <div id="notasWrap"></div>
   </div>
+
+  <div class="view" id="view-bosque">
+    <div id="bosqueWrap"></div>
+  </div>
 </div>
 
 <script>
@@ -1142,13 +1225,25 @@
   ];
   function catInfo(id) { return CATS.find(function (c) { return c.id === id; }) || CATS[0]; }
 
+  var TREE_TYPES = [
+    { id: 'roble', label: 'Roble', emoji: '🌳' },
+    { id: 'pino', label: 'Pino', emoji: '🌲' },
+    { id: 'palmera', label: 'Palmera', emoji: '🌴' },
+    { id: 'abeto', label: 'Abeto', emoji: '🎄' },
+    { id: 'cerezo', label: 'Cerezo', emoji: '🌸' },
+    { id: 'cactus', label: 'Cactus', emoji: '🌵' }
+  ];
+  function treeInfo(id) { return TREE_TYPES.find(function (x) { return x.id === id; }) || TREE_TYPES[0]; }
+  var FOREST_CHECK_KEY = 'mente_forest_last_check';
+  var forestDays = [];
+
   var tasks = [];
   var notesData = [];
 
   var streakDays = [];
   try { streakDays = JSON.parse(localStorage.getItem(STREAK_KEY)) || []; } catch (e) { streakDays = []; }
 
-  var prefs = { hideDoneHoy: false, sound: true, scopeFilter: 'todo' };
+  var prefs = { hideDoneHoy: false, sound: true, scopeFilter: 'todo', treeType: 'roble' };
   try { prefs = Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS_KEY)) || {}); } catch (e) {}
   function inScope(t) { return prefs.scopeFilter === 'todo' || t.category === prefs.scopeFilter; }
 
@@ -1215,6 +1310,11 @@
       notes: row.notes || '',
       requiresPhoto: !!row.requires_photo,
       photos: row.photos || [],
+      requiresConfirmation: !!row.requires_confirmation,
+      confirmationToken: row.confirmation_token || null,
+      confirmedAt: row.confirmed_at || null,
+      confirmedBy: row.confirmed_by || null,
+      confirmPerson: row.confirm_person || null,
       createdAt: row.created_at,
       reminders: (row.reminders || []).map(function (r) {
         return { id: r.id, time: hhmm(r.time), repeat: r.repeat, date: r.date, n: r.n };
@@ -1329,6 +1429,7 @@
   var selectedPri = 'media';
   var selectedRepeat = 'none';
   var selectedRequiresPhoto = false;
+  var selectedRequiresConfirmation = false;
   var catChipsEl = document.getElementById('catChips');
   catChipsEl.innerHTML = CATS.map(function (c) {
     return '<button type="button" class="chip-select' + (c.id === selectedCat ? ' active' : '') + '" data-cat="' + c.id + '" style="color:' + (c.id === selectedCat ? c.color : '') + '">' +
@@ -1375,6 +1476,14 @@
   reqPhotoChipEl.addEventListener('click', function () {
     selectedRequiresPhoto = !selectedRequiresPhoto;
     reqPhotoChipEl.classList.toggle('active', selectedRequiresPhoto);
+  });
+
+  var reqConfirmChipEl = document.getElementById('reqConfirmChip');
+  var confirmPersonInputEl = document.getElementById('confirmPersonInput');
+  reqConfirmChipEl.addEventListener('click', function () {
+    selectedRequiresConfirmation = !selectedRequiresConfirmation;
+    reqConfirmChipEl.classList.toggle('active', selectedRequiresConfirmation);
+    confirmPersonInputEl.style.display = selectedRequiresConfirmation ? '' : 'none';
   });
 
   document.getElementById('qaMoreToggle').addEventListener('click', function () {
@@ -1497,6 +1606,39 @@
       alert(text);
     }
   }
+
+  /* ---------- confirmación de un tercero (sin login) ---------- */
+  async function shareConfirmation(id) {
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    if (!t.confirmationToken) {
+      var token = crypto.randomUUID();
+      t.confirmationToken = token;
+      renderAll();
+      dbUpdateTask(id, { confirmation_token: token });
+    }
+    var link = window.location.origin + '/confirm.html?token=' + t.confirmationToken;
+    var text = '🤝 ¿Me confirmas que ya hice esto?\n\n"' + t.title + '"\n\n' + link;
+    if (window.navigator.share) {
+      try { await window.navigator.share({ title: 'Mente', text: text }); return; } catch (e) { return; }
+    }
+    if (window.navigator.clipboard) {
+      try { await window.navigator.clipboard.writeText(text); alert('Copié el mensaje con el enlace al portapapeles — pégalo donde quieras mandarlo (ej. WhatsApp).'); return; }
+      catch (e) {}
+    }
+    alert(text);
+  }
+  async function refreshTaskConfirmation(id) {
+    var res = await sb.from('tasks').select('id, done, confirmed_at, confirmed_by').eq('id', id).maybeSingle();
+    if (res.error || !res.data) return;
+    var t = tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    t.done = res.data.done;
+    t.confirmedAt = res.data.confirmed_at;
+    t.confirmedBy = res.data.confirmed_by;
+    renderAll();
+    if (res.data.confirmed_at) markStreakToday();
+  }
   function showShareToast(id) {
     var existing = document.querySelector('.share-toast');
     if (existing) existing.remove();
@@ -1532,6 +1674,98 @@
     return count;
   }
   function updateStreakUI() { document.getElementById('streakNum').textContent = currentStreak(); }
+
+  /* ---------- bosque: árbol del día + historial ---------- */
+  async function fetchForest() {
+    var res = await sb.from('tree_days').select('*').order('date', { ascending: false });
+    if (res.error) { console.error(res.error); return; }
+    forestDays = res.data || [];
+  }
+  async function evaluateForestDays() {
+    var lastCheck = localStorage.getItem(FOREST_CHECK_KEY);
+    var yesterday = addDays(todayStr, -1);
+    var start = lastCheck ? addDays(lastCheck, 1) : yesterday;
+    if (start > yesterday) return;
+    var rowsToInsert = [];
+    var d = start;
+    while (d <= yesterday) {
+      var dayTasks = tasks.filter(function (t) { return t.date === d; });
+      if (dayTasks.length) {
+        var allDone = dayTasks.every(function (t) { return t.done; });
+        rowsToInsert.push({
+          user_id: currentUserId, date: d,
+          tree_type: prefs.treeType || 'roble',
+          status: allDone ? 'bloomed' : 'dead'
+        });
+      }
+      d = addDays(d, 1);
+    }
+    if (rowsToInsert.length) {
+      var res = await sb.from('tree_days').upsert(rowsToInsert, { onConflict: 'user_id,date', ignoreDuplicates: true });
+      if (res.error) console.error(res.error);
+    }
+    localStorage.setItem(FOREST_CHECK_KEY, yesterday);
+    await fetchForest();
+  }
+  function todayGrowthPct() {
+    var hoyAll = tasks.filter(function (t) { return t.date === todayStr; });
+    if (!hoyAll.length) return 0;
+    var done = hoyAll.filter(function (t) { return t.done; }).length;
+    return Math.round(done / hoyAll.length * 100);
+  }
+  function growthStage(pct, hasTasksToday) {
+    if (!hasTasksToday) return { emoji: '🌱', label: 'Sin pendientes hoy todavía', scale: 0.75, opacity: 0.6 };
+    if (pct === 0) return { emoji: '🌱', label: 'Apenas empezando', scale: 0.8, opacity: 0.7 };
+    if (pct < 33) return { emoji: '🌿', label: 'Brotando', scale: 0.85, opacity: 0.8 };
+    if (pct < 66) return { emoji: treeInfo(prefs.treeType).emoji, label: 'Creciendo', scale: 0.9, opacity: 0.9 };
+    if (pct < 100) return { emoji: treeInfo(prefs.treeType).emoji, label: 'Casi listo', scale: 1, opacity: 1 };
+    return { emoji: '🌸', label: '¡Floreció! Se plantará en tu bosque esta noche', scale: 1.15, opacity: 1 };
+  }
+  function renderBosque() {
+    var wrap = document.getElementById('bosqueWrap');
+    var hoyAll = tasks.filter(function (t) { return t.date === todayStr; });
+    var pct = todayGrowthPct();
+    var stage = growthStage(pct, hoyAll.length > 0);
+    var bloomedCount = forestDays.filter(function (d) { return d.status === 'bloomed'; }).length;
+    var deadCount = forestDays.filter(function (d) { return d.status === 'dead'; }).length;
+
+    var growHtml =
+      '<div class="grow-card">' +
+        '<div class="grow-tree" style="transform:scale(' + stage.scale + ');opacity:' + stage.opacity + '">' + stage.emoji + '</div>' +
+        '<div class="grow-label">' + stage.label + '</div>' +
+        '<div class="grow-sub">' + (hoyAll.length ? pct + '% de tus pendientes de hoy completados' : 'Agrega pendientes con fecha de hoy para que tu árbol empiece a crecer') + '</div>' +
+        (hoyAll.length ? '<div class="grow-bar"><div class="grow-bar-fill" style="width:' + pct + '%"></div></div>' : '') +
+        '<div class="species-picker">' + TREE_TYPES.map(function (sp) {
+          return '<button type="button" class="species-btn' + (prefs.treeType === sp.id ? ' active' : '') + '" data-species="' + sp.id + '" title="' + sp.label + '">' + sp.emoji + '</button>';
+        }).join('') + '</div>' +
+      '</div>';
+
+    var statsHtml =
+      '<div class="forest-stats">' +
+        '<div class="forest-stat"><div class="forest-stat-value">' + bloomedCount + '</div><div class="forest-stat-label">🌳 árboles en tu bosque</div></div>' +
+        '<div class="forest-stat"><div class="forest-stat-value">' + deadCount + '</div><div class="forest-stat-label">🥀 días perdidos</div></div>' +
+      '</div>';
+
+    var gridHtml = forestDays.length
+      ? '<div class="forest-grid">' + forestDays.map(function (d) {
+          var isDead = d.status === 'dead';
+          var emoji = isDead ? '🥀' : treeInfo(d.tree_type).emoji;
+          var dd = new Date(d.date + 'T00:00:00');
+          var label = dd.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+          return '<div class="forest-tile' + (isDead ? ' dead' : '') + '"><span class="tile-emoji">' + emoji + '</span><span class="tile-date">' + label + '</span></div>';
+        }).join('') + '</div>'
+      : '<div class="forest-empty">Todavía no tienes árboles plantados. Completa todos tus pendientes de hoy y esta noche tu árbol florecerá aquí. 🌱</div>';
+
+    wrap.innerHTML = growHtml + statsHtml + gridHtml;
+
+    wrap.querySelectorAll('.species-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        prefs.treeType = btn.dataset.species;
+        savePrefs();
+        renderBosque();
+      });
+    });
+  }
 
   /* ---------- push notifications ---------- */
   function urlBase64ToUint8Array(base64String) {
@@ -1598,7 +1832,10 @@
       done: false,
       subtasks: [],
       repeat: repeat,
-      requires_photo: selectedRequiresPhoto
+      requires_photo: selectedRequiresPhoto,
+      requires_confirmation: selectedRequiresConfirmation,
+      confirm_person: selectedRequiresConfirmation ? (confirmPersonInputEl.value.trim() || null) : null,
+      confirmation_token: selectedRequiresConfirmation ? crypto.randomUUID() : null
     };
     if (newId) { insertFields.id = newId; insertFields.series_id = newId; }
     var inserted = await dbInsertTask(insertFields);
@@ -1607,6 +1844,10 @@
       addSound();
       selectedRequiresPhoto = false;
       reqPhotoChipEl.classList.remove('active');
+      selectedRequiresConfirmation = false;
+      reqConfirmChipEl.classList.remove('active');
+      confirmPersonInputEl.style.display = 'none';
+      confirmPersonInputEl.value = '';
       await ensureTaskReminder(inserted);
     }
     document.getElementById('inpTitle').value = '';
@@ -1723,6 +1964,7 @@
       if (tab.dataset.view === 'stats') renderStats();
       if (tab.dataset.view === 'inbox') renderInbox();
       if (tab.dataset.view === 'notas') renderNotas();
+      if (tab.dataset.view === 'bosque') renderBosque();
     });
   });
 
@@ -1752,6 +1994,12 @@
       alert('Esta tarea necesita al menos una foto antes de poder marcarla como cumplida. Ábrela con ☰ y agrégala en "Fotos".');
       var panel = document.querySelector('.subtasks[data-owner="' + id + '"]');
       if (panel) panel.classList.add('open');
+      return;
+    }
+    if (!t.done && t.requiresConfirmation && !t.confirmedAt) {
+      alert('Esta tarea necesita que ' + (t.confirmPerson || 'la otra persona') + ' la confirme antes de poder marcarla como cumplida. Ábrela con ☰ y toca "Enviar para confirmar".');
+      var panel2 = document.querySelector('.subtasks[data-owner="' + id + '"]');
+      if (panel2) panel2.classList.add('open');
       return;
     }
     t.done = !t.done;
@@ -1962,6 +2210,12 @@
       meta += '<button type="button" class="snooze-btn" data-action="assigntoday">→ Hoy</button>' +
         '<button type="button" class="snooze-btn" data-action="assigndate">📅 Fecha</button>';
     }
+    var confirmStatusHtml = '';
+    if (t.requiresConfirmation) {
+      confirmStatusHtml = t.confirmedAt
+        ? '<div class="confirm-status done">✅ Confirmada' + (t.confirmedBy ? ' por ' + escapeHtml(t.confirmedBy) : '') + '</div>'
+        : '<div class="confirm-status pending">⏳ Esperando confirmación' + (t.confirmPerson ? ' de ' + escapeHtml(t.confirmPerson) : '') + '</div>';
+    }
     var subDone = t.subtasks.filter(function (s) { return s.done; }).length;
     var subTotal = t.subtasks.length;
     var subProgress = subTotal ? '<div class="subtask-progress"><span>' + subDone + '/' + subTotal + ' pasos</span><span class="subtask-bar"><span class="subtask-bar-fill" style="width:' + Math.round(subDone/subTotal*100) + '%"></span></span></div>' : '';
@@ -2004,10 +2258,14 @@
         }).join('') +
         '<label class="photo-add-btn">+ Agregar<input type="file" accept="image/*" data-action="photoinput" hidden /></label>' +
       '</div>' +
+      (t.requiresConfirmation && !t.confirmedAt
+        ? '<button type="button" class="confirm-send-btn" data-action="sendconfirm">📤 Enviar para confirmar' + (t.confirmPerson ? ' a ' + escapeHtml(t.confirmPerson) : '') + '</button>' +
+          '<button type="button" class="confirm-send-btn" data-action="refreshconfirm" style="margin-left:6px;">🔄 Ya confirmó, actualizar</button>'
+        : '') +
       '</div>';
 
     return '<div class="task' + (t.done ? ' done' : '') + '" data-id="' + t.id + '" style="--cat-color:' + cat.color + '">' +
-      '<div class="check" data-action="toggle">' + (t.done ? '✓' : '') + '</div>' +
+      '<div class="check' + (t.requiresConfirmation && !t.confirmedAt ? ' locked' : '') + '" data-action="toggle" title="' + (t.requiresConfirmation && !t.confirmedAt ? 'Necesita confirmación' : '') + '">' + (t.done ? '✓' : (t.requiresConfirmation && !t.confirmedAt ? '🔒' : '')) + '</div>' +
       '<div class="task-body">' +
         '<div class="task-title-row">' +
           '<input class="task-title" data-action="edit" value="' + escapeHtml(t.title).replace(/"/g,'&quot;') + '" ' + (t.done ? 'readonly' : '') + ' />' +
@@ -2015,6 +2273,7 @@
         '</div>' +
         '<div class="task-meta">' + meta + '</div>' +
         subProgress +
+        confirmStatusHtml +
         subtasksHtml +
       '</div>' +
       '<div class="task-actions">' +
@@ -2056,6 +2315,10 @@
       if (expandBtn) expandBtn.addEventListener('click', function () { toggleSubtasks(id); });
       var shareBtn = row.querySelector('[data-action="share"]');
       if (shareBtn) shareBtn.addEventListener('click', function () { shareTask(id); });
+      var sendConfirmBtn = row.querySelector('[data-action="sendconfirm"]');
+      if (sendConfirmBtn) sendConfirmBtn.addEventListener('click', function () { shareConfirmation(id); });
+      var refreshConfirmBtn = row.querySelector('[data-action="refreshconfirm"]');
+      if (refreshConfirmBtn) refreshConfirmBtn.addEventListener('click', function () { refreshTaskConfirmation(id); });
       var subAdd = row.querySelector('[data-action="subadd"]');
       var subInput = row.querySelector('[data-action="subinput"]');
       if (subAdd && subInput) {
@@ -2653,6 +2916,7 @@
     if (document.getElementById('view-dia').classList.contains('active')) renderDiaPlanner();
     if (document.getElementById('view-mes').classList.contains('active')) renderMes();
     if (document.getElementById('view-stats').classList.contains('active')) renderStats();
+    if (document.getElementById('view-bosque').classList.contains('active')) renderBosque();
   }
 
   /* ---------- auth ---------- */
@@ -2698,6 +2962,7 @@
     }
     updateStreakUI();
     await loadTasks();
+    await evaluateForestDays();
     await handleGoogleOAuthReturn();
     refreshGoogleStatus();
   }
@@ -2705,6 +2970,7 @@
     currentUserId = null;
     tasks = [];
     notesData = [];
+    forestDays = [];
     appEl.classList.remove('ready');
     authScreen.style.display = 'flex';
   }

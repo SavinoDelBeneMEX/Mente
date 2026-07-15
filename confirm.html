@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Confirmar tarea — Mente</title>
+<link rel="icon" href="/icon-192.png" />
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+<meta name="robots" content="noindex, nofollow" />
+<script>
+  window.MENTE_CONFIG = {
+    SUPABASE_URL: 'https://ecmenbgaeqvojfcgyjgc.supabase.co',
+    SUPABASE_ANON_KEY: 'sb_publishable_tl9yhkWtzYsWk2WC102YNQ_Qq0Tnhut'
+  };
+</script>
+<style>
+  :root {
+    --bg: #f2f2f7; --surface: #ffffff; --surface-sunken: #f2f2f7;
+    --line: rgba(60,60,67,0.13); --line-strong: rgba(60,60,67,0.24);
+    --ink: #1c1c1e; --muted: #6e6e73; --faint: #8e8e93;
+    --accent: #007aff; --accent-ink: #ffffff; --accent-soft: rgba(0,122,255,0.12);
+    --bad: #ff3b30; --bad-soft: rgba(255,59,48,0.12);
+    --good: #34c759; --good-soft: rgba(52,199,89,0.12);
+    --shadow-lg: 0 2px 10px rgba(30,30,35,0.06);
+    --ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-stamp: cubic-bezier(0.34, 1.56, 0.64, 1);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000; --surface: #1c1c1e; --surface-sunken: #000000;
+      --line: rgba(84,84,88,0.32); --line-strong: rgba(84,84,88,0.5);
+      --ink: #f2f2f7; --muted: #98989f; --faint: #636366;
+      --accent: #0a84ff; --accent-soft: rgba(10,132,255,0.18);
+      --bad: #ff453a; --bad-soft: rgba(255,69,58,0.18);
+      --good: #30d158; --good-soft: rgba(48,209,88,0.18);
+      --shadow-lg: 0 2px 12px rgba(0,0,0,0.55);
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .card {
+    width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 20px; box-shadow: var(--shadow-lg); padding: 32px 26px; text-align: center;
+    animation: settle-in 360ms var(--ease) both;
+  }
+  @keyframes settle-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
+  @keyframes stamp { 0% { transform: scale(0.6); } 55% { transform: scale(1.12); } 75% { transform: scale(0.96); } 100% { transform: scale(1); } }
+  .brand-mark {
+    width: 44px; height: 44px; border-radius: 12px; margin: 0 auto 14px;
+    background: linear-gradient(155deg, var(--accent), #5856d6);
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+    box-shadow: 0 2px 8px rgba(0,122,255,0.35);
+  }
+  .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; text-wrap: balance; }
+  .cat { font-size: 13px; color: var(--muted); margin: 0 0 18px; }
+  .notes { font-size: 14px; color: var(--ink); background: var(--surface-sunken); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; text-align: left; white-space: pre-wrap; }
+  .photos { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 20px; }
+  .photos img { width: 92px; height: 92px; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
+  input[type="text"] {
+    width: 100%; box-sizing: border-box; background: var(--surface-sunken); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 14px; font-size: 15px; color: var(--ink); font-family: inherit; margin-bottom: 14px;
+  }
+  input[type="text"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  button.confirm-btn {
+    width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 999px;
+    padding: 15px; font-size: 16px; font-weight: 600; cursor: pointer;
+    transition: opacity .15s, transform .12s var(--ease);
+  }
+  button.confirm-btn:hover { opacity: 0.92; }
+  button.confirm-btn:active { transform: scale(0.96); }
+  .state-icon { font-size: 40px; margin-bottom: 10px; animation: stamp 420ms var(--ease-stamp); }
+  .muted { color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .hidden { display: none; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600;
+    padding: 6px 12px; border-radius: 999px; margin-bottom: 4px;
+  }
+  .badge.good { color: var(--good); background: var(--good-soft); }
+  .badge.bad { color: var(--bad); background: var(--bad-soft); }
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="brand-mark">🧠</div>
+    <div class="eyebrow">Mente · Confirmación de tarea</div>
+    <div id="content"><p class="muted">Cargando…</p></div>
+  </div>
+
+<script>
+(function () {
+  var cfg = window.MENTE_CONFIG;
+  var content = document.getElementById('content');
+  var params = new URLSearchParams(window.location.search);
+  var token = params.get('token');
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  function fnUrl(path) { return cfg.SUPABASE_URL + '/functions/v1/confirm-task' + path; }
+  function fnHeaders(extra) {
+    return Object.assign({ 'apikey': cfg.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + cfg.SUPABASE_ANON_KEY }, extra || {});
+  }
+
+  function renderError(msg) {
+    content.innerHTML = '<div class="state-icon">⚠️</div><h1>No se pudo abrir</h1><p class="muted">' + escapeHtml(msg) + '</p>';
+  }
+
+  function renderConfirmed(task, viaPost) {
+    content.innerHTML =
+      '<div class="state-icon">✅</div><h1>¡Listo, confirmada!</h1>' +
+      '<p class="muted">' + (viaPost ? 'Gracias por confirmar. ' : '') + 'Esta tarea ya quedó marcada como hecha en Mente.</p>';
+  }
+
+  function renderTask(task) {
+    if (task.confirmed_at) { renderConfirmed(task, false); return; }
+    var catLabel = task.category === 'trabajo' ? '💼 Trabajo' : '🏠 Personal';
+    var photosHtml = (task.photos || []).length
+      ? '<div class="photos">' + task.photos.map(function (p) {
+          return '<img src="' + escapeHtml(p.url) + '" loading="lazy" alt="Foto de evidencia" />';
+        }).join('') + '</div>'
+      : '';
+    content.innerHTML =
+      '<h1>' + escapeHtml(task.title) + '</h1>' +
+      '<p class="cat">' + catLabel + (task.confirm_person ? ' · te la mandaron para confirmar' : '') + '</p>' +
+      (task.notes ? '<div class="notes">' + escapeHtml(task.notes) + '</div>' : '') +
+      photosHtml +
+      '<input type="text" id="nameInput" placeholder="Tu nombre (opcional)" autocomplete="off" />' +
+      '<button type="button" class="confirm-btn" id="confirmBtn">✅ Confirmar que se hizo</button>';
+
+    document.getElementById('confirmBtn').addEventListener('click', function () {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Confirmando…';
+      var name = document.getElementById('nameInput').value.trim();
+      fetch(fnUrl(''), {
+        method: 'POST',
+        headers: fnHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ token: token, name: name })
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res.ok) renderConfirmed(res.task, true);
+        else renderError('Esta tarea ya no está disponible para confirmar.');
+      }).catch(function () { renderError('No hay conexión. Intenta de nuevo en un momento.'); });
+    });
+  }
+
+  if (!token) {
+    renderError('Este enlace no incluye un código de confirmación válido.');
+  } else {
+    fetch(fnUrl('?token=' + encodeURIComponent(token)), { headers: fnHeaders() })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res.ok) renderTask(res.task);
+        else renderError('Este enlace ya no es válido — puede que la tarea ya se haya borrado.');
+      })
+      .catch(function () { renderError('No hay conexión. Revisa tu internet e intenta de nuevo.'); });
+  }
+})();
+</script>
+</body>
+</html>

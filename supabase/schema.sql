@@ -20,6 +20,11 @@ create table if not exists public.tasks (
   requires_photo boolean not null default false, -- si es true, no se puede marcar como hecha sin al menos 1 foto
   photos jsonb not null default '[]'::jsonb,      -- [{ path, url }] en el bucket de Storage "task-photos"
   google_event_id text,                  -- id del evento espejo en Google Calendar, si ya se sincronizó
+  requires_confirmation boolean not null default false, -- si es true, solo se marca hecha cuando otra persona la confirma
+  confirmation_token uuid,               -- token público (sin login) para la página confirm.html
+  confirmed_at timestamptz,              -- cuándo confirmó la otra persona
+  confirmed_by text,                     -- nombre que escribió quien confirmó (opcional, lo llena esa persona)
+  confirm_person text,                   -- a quién se le va a pedir la confirmación (lo escribe el dueño de la tarea)
   created_at timestamptz not null default now()
 );
 
@@ -63,11 +68,24 @@ create table if not exists public.google_tokens (
   updated_at timestamptz not null default now()
 );
 
+-- Árbol/bosque: un registro por día en que hubo al menos una tarea con esa fecha.
+-- "bloomed" = se completaron todas las tareas de ese día; "dead" = quedó alguna sin completar.
+create table if not exists public.tree_days (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  tree_type text not null default 'roble',
+  status text not null check (status in ('bloomed', 'dead')),
+  created_at timestamptz not null default now(),
+  unique (user_id, date)
+);
+
 alter table public.tasks enable row level security;
 alter table public.reminders enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.google_tokens enable row level security;
 alter table public.notes enable row level security;
+alter table public.tree_days enable row level security;
 
 drop policy if exists "own tasks" on public.tasks;
 create policy "own tasks" on public.tasks
@@ -89,12 +107,20 @@ drop policy if exists "own google tokens" on public.google_tokens;
 create policy "own google tokens" on public.google_tokens
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own tree days" on public.tree_days;
+create policy "own tree days" on public.tree_days
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- Índices para que la función de envío de push sea rápida
 create index if not exists reminders_user_idx on public.reminders(user_id);
 create index if not exists reminders_lastfired_idx on public.reminders(last_fired_on);
 create index if not exists tasks_user_idx on public.tasks(user_id);
 create index if not exists tasks_series_idx on public.tasks(series_id, date);
 create index if not exists notes_user_idx on public.notes(user_id);
+create index if not exists tree_days_user_idx on public.tree_days(user_id, date desc);
+-- El token es el único "secreto" que necesita quien confirma una tarea desde confirm.html.
+create unique index if not exists tasks_confirmation_token_idx
+  on public.tasks(confirmation_token) where confirmation_token is not null;
 
 -- Bucket de Storage para las fotos de tareas (ver supabase/migration_photos_notes.sql
 -- para el detalle y el porqué es público).
