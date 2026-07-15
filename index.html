@@ -42,6 +42,10 @@
     --bad-soft: rgba(255,59,48,0.12);
     --good: #34c759;
     --good-soft: rgba(52,199,89,0.12);
+    --forest-sky-top: #eef5fb;
+    --forest-sky-mid: #e6f2e6;
+    --forest-sky-bottom: #cfe8cf;
+    --forest-soil: #b6c98e;
     --shadow: 0 1px 2px rgba(30,30,35,0.04), 0 1px 1px rgba(30,30,35,0.03);
     --shadow-lg: 0 2px 10px rgba(30,30,35,0.06);
     --shadow-hover: 0 14px 34px -10px rgba(30,30,35,0.18);
@@ -79,6 +83,10 @@
       --bad-soft: rgba(255,69,58,0.18);
       --good: #30d158;
       --good-soft: rgba(48,209,88,0.18);
+      --forest-sky-top: #111d2b;
+      --forest-sky-mid: #10241c;
+      --forest-sky-bottom: #0d2a19;
+      --forest-soil: #2b3a1c;
       --shadow: 0 1px 2px rgba(0,0,0,0.5);
       --shadow-lg: 0 2px 12px rgba(0,0,0,0.55);
       --shadow-hover: 0 16px 38px -10px rgba(0,0,0,0.6);
@@ -1013,19 +1021,87 @@
   }
 
   /* ---------- bosque ---------- */
-  .grow-card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
-    box-shadow: var(--shadow-lg); padding: 32px 24px; text-align: center; margin-bottom: 24px;
+  @keyframes tree-sway {
+    0%, 100% { transform: rotate(-3.5deg); }
+    50% { transform: rotate(3.5deg); }
+  }
+  @keyframes tile-sway {
+    0%, 100% { transform: rotate(calc(-4deg + var(--lean, 0deg))) scale(var(--scale, 1)); }
+    50% { transform: rotate(calc(4deg + var(--lean, 0deg))) scale(var(--scale, 1)); }
+  }
+  @keyframes leaf-drift {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.9; }
+    100% { transform: translate(var(--leaf-dx, 14px), 46px) rotate(200deg); opacity: 0; }
+  }
+  @keyframes grow-pop {
+    0% { transform: scale(0.82) rotate(0deg); }
+    45% { transform: scale(1.22) rotate(-4deg); }
+    72% { transform: scale(0.94) rotate(2deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  .forest-stats { display: flex; gap: 20px; margin-bottom: 16px; flex-wrap: wrap; }
+  .forest-stat { flex: 1; min-width: 110px; text-align: center; }
+  .forest-stat-value { font-family: var(--font-display); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; transition: transform .3s var(--ease-stamp); display: inline-block; }
+  .forest-stat-label { font-size: 11.5px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+
+  .forest-ground {
+    position: relative;
+    background: linear-gradient(180deg, var(--forest-sky-top) 0%, var(--forest-sky-mid) 58%, var(--forest-sky-bottom) 88%, var(--forest-soil) 100%);
+    border: 1px solid var(--line); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg); padding: 20px 0 0; margin-bottom: 20px; overflow: hidden;
     animation: settle-in var(--dur-3) var(--ease) both;
   }
-  .grow-tree {
-    font-size: 64px; line-height: 1; margin-bottom: 10px; display: inline-block;
-    transition: transform .5s var(--ease-stamp), opacity .4s var(--ease), filter .4s var(--ease);
+  .forest-row {
+    position: relative; z-index: 1; display: flex; align-items: flex-end; flex-wrap: nowrap;
+    gap: 0; min-height: 128px; padding: 0 20px 20px; overflow-x: auto; overflow-y: visible;
+    scrollbar-width: none; -ms-overflow-style: none;
   }
-  .grow-label { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
-  .grow-sub { font-size: 12.5px; color: var(--muted); }
+  .forest-row::-webkit-scrollbar { display: none; }
+  .forest-slot {
+    position: relative; display: flex; flex-direction: column; align-items: center;
+    width: 46px; flex: none; margin: 0 4px;
+  }
+  .forest-slot::before {
+    content: ''; position: absolute; bottom: 15px; width: 22px; height: 6px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(20,15,5,0.32), rgba(20,15,5,0));
+  }
+  .forest-slot .slot-emoji {
+    font-size: 25px; display: inline-block; transform-origin: bottom center; margin-bottom: 15px;
+    animation: tile-sway 3.6s ease-in-out infinite;
+  }
+  .forest-slot:hover .slot-emoji { animation-play-state: paused; }
+  .forest-slot.dead .slot-emoji { filter: grayscale(1); opacity: 0.55; animation-duration: 6s; }
+  .forest-slot .slot-date { font-size: 9px; color: var(--faint); font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  .forest-slot.today { width: auto; margin: 0 10px 0 16px; }
+  .forest-slot.today::before { bottom: 20px; width: 40px; height: 9px; background: radial-gradient(closest-side, rgba(20,15,5,0.36), rgba(20,15,5,0)); }
+  .forest-today-stage {
+    position: relative; display: inline-block; margin-bottom: 20px;
+    transition: transform .6s var(--ease-stamp), opacity .5s var(--ease), filter .5s var(--ease);
+    transform-origin: bottom center;
+  }
+  .forest-today-sway { display: inline-block; transform-origin: bottom center; animation: tree-sway 4.2s ease-in-out infinite; }
+  .forest-today-emoji { font-size: 52px; line-height: 1; display: inline-block; transform-origin: bottom center; }
+  .forest-today-emoji.popping { animation: grow-pop .55s var(--ease-stamp); }
+  .grow-leaf {
+    position: absolute; top: 8px; font-size: 13px; pointer-events: none;
+    animation: leaf-drift 2.2s ease-in forwards;
+  }
+  .forest-today-tag {
+    position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.03em; color: var(--accent);
+    background: var(--accent-soft); padding: 2px 8px; border-radius: var(--r-pill); white-space: nowrap;
+  }
+
+  .grow-info {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg); padding: 20px 24px 24px; text-align: center; margin-bottom: 24px;
+  }
+  .grow-label { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 2px; transition: opacity .2s var(--ease); }
+  .grow-sub { font-size: 12.5px; color: var(--muted); transition: opacity .2s var(--ease); }
   .grow-bar { width: 100%; max-width: 260px; height: 6px; border-radius: var(--r-pill); background: var(--surface-sunken); overflow: hidden; margin: 16px auto 0; }
-  .grow-bar-fill { height: 100%; background: var(--accent); border-radius: var(--r-pill); transition: width .5s var(--ease); }
+  .grow-bar-fill { height: 100%; background: var(--accent); border-radius: var(--r-pill); transition: width .6s var(--ease); }
   .species-picker { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
   .species-btn {
     width: 46px; height: 46px; border-radius: var(--r-md); border: 1.5px solid var(--line);
@@ -1037,28 +1113,51 @@
   .species-btn:active { transform: scale(0.92); }
   .species-btn.active { border-color: var(--accent); background: var(--accent-soft); transform: scale(1.06); }
 
-  .forest-stats { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
-  .forest-stat { flex: 1; min-width: 110px; text-align: center; }
-  .forest-stat-value { font-family: var(--font-display); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
-  .forest-stat-label { font-size: 11.5px; color: var(--muted); font-weight: 500; margin-top: 2px; }
-
-  .forest-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px;
-  }
-  .forest-tile {
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
-    padding: 10px 6px 8px; text-align: center; box-shadow: var(--shadow);
-    animation: cascade-in var(--dur-2) var(--ease) both;
-    transition: transform .16s var(--ease), box-shadow .16s var(--ease);
-  }
-  .forest-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
-  .forest-tile .tile-emoji { font-size: 26px; display: block; }
-  .forest-tile.dead .tile-emoji { filter: grayscale(1); opacity: 0.55; }
-  .forest-tile .tile-date { font-size: 9.5px; color: var(--faint); font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
   .forest-empty {
-    color: var(--faint); font-size: 13.5px; padding: 30px 4px; text-align: center;
-    border: 1.5px dashed var(--line-strong); border-radius: var(--r-md);
+    color: var(--faint); font-size: 13.5px; padding: 20px 4px; text-align: center;
   }
+
+  @keyframes wing-flutter-left {
+    0%, 100% { transform: scaleX(1); }
+    50% { transform: scaleX(0.32); }
+  }
+  @keyframes wing-flutter-right {
+    0%, 100% { transform: scaleX(1); }
+    50% { transform: scaleX(0.32); }
+  }
+  @keyframes wing-flap-bird {
+    0%, 100% { transform: rotate(-8deg); }
+    50% { transform: rotate(38deg); }
+  }
+  @keyframes leg-kick-a {
+    0%, 100% { transform: rotate(-16deg); }
+    50% { transform: rotate(20deg); }
+  }
+  @keyframes leg-kick-b {
+    0%, 100% { transform: rotate(20deg); }
+    50% { transform: rotate(-16deg); }
+  }
+  .forest-critter {
+    position: absolute; pointer-events: none; z-index: 0;
+    opacity: 0; filter: saturate(0.85) brightness(0.96); will-change: transform, opacity;
+  }
+  .forest-critter svg { display: block; overflow: visible; }
+  .forest-critter.flying.type-butterfly .wing-left { transform-origin: 20px 15px; animation: wing-flutter-left 0.34s ease-in-out infinite; }
+  .forest-critter.flying.type-butterfly .wing-right { transform-origin: 20px 15px; animation: wing-flutter-right 0.34s ease-in-out infinite; animation-delay: 0.02s; }
+  .forest-critter.flying.type-bird .wing { transform-origin: 16px 12px; animation: wing-flap-bird 0.22s ease-in-out infinite; }
+  .forest-critter.hopping .leg-a { transform-origin: 12px 18px; animation: leg-kick-a 0.4s ease-in-out infinite; }
+  .forest-critter.hopping .leg-b { transform-origin: 24px 18px; animation: leg-kick-b 0.4s ease-in-out infinite; }
+
+  @keyframes cloud-drift {
+    from { transform: translateX(-30%); }
+    to { transform: translateX(130%); }
+  }
+  .forest-cloud {
+    position: absolute; pointer-events: none; opacity: 0.5;
+    animation: cloud-drift linear infinite;
+  }
+  .forest-cloud svg { display: block; }
+  @media (prefers-color-scheme: dark) { .forest-cloud { opacity: 0.14; } }
 </style>
 </head>
 <body>
@@ -1236,6 +1335,11 @@
   function treeInfo(id) { return TREE_TYPES.find(function (x) { return x.id === id; }) || TREE_TYPES[0]; }
   var FOREST_CHECK_KEY = 'mente_forest_last_check';
   var forestDays = [];
+  var CLOUD_SVGS = [
+    { top: 8, w: 70, dur: 85, delay: 10 },
+    { top: 20, w: 50, dur: 110, delay: 60 },
+    { top: 4, w: 44, dur: 70, delay: 35 }
+  ];
 
   var tasks = [];
   var notesData = [];
@@ -1676,10 +1780,13 @@
   function updateStreakUI() { document.getElementById('streakNum').textContent = currentStreak(); }
 
   /* ---------- bosque: árbol del día + historial ---------- */
+  var forestGridDirty = true;
+  var lastGrowStageEmoji = null;
   async function fetchForest() {
     var res = await sb.from('tree_days').select('*').order('date', { ascending: false });
     if (res.error) { console.error(res.error); return; }
     forestDays = res.data || [];
+    forestGridDirty = true;
   }
   async function evaluateForestDays() {
     var lastCheck = localStorage.getItem(FOREST_CHECK_KEY);
@@ -1721,51 +1828,230 @@
     if (pct < 100) return { emoji: treeInfo(prefs.treeType).emoji, label: 'Casi listo', scale: 1, opacity: 1 };
     return { emoji: '🌸', label: '¡Floreció! Se plantará en tu bosque esta noche', scale: 1.15, opacity: 1 };
   }
-  function renderBosque() {
-    var wrap = document.getElementById('bosqueWrap');
-    var hoyAll = tasks.filter(function (t) { return t.date === todayStr; });
-    var pct = todayGrowthPct();
-    var stage = growthStage(pct, hoyAll.length > 0);
-    var bloomedCount = forestDays.filter(function (d) { return d.status === 'bloomed'; }).length;
-    var deadCount = forestDays.filter(function (d) { return d.status === 'dead'; }).length;
-
-    var growHtml =
-      '<div class="grow-card">' +
-        '<div class="grow-tree" style="transform:scale(' + stage.scale + ');opacity:' + stage.opacity + '">' + stage.emoji + '</div>' +
-        '<div class="grow-label">' + stage.label + '</div>' +
-        '<div class="grow-sub">' + (hoyAll.length ? pct + '% de tus pendientes de hoy completados' : 'Agrega pendientes con fecha de hoy para que tu árbol empiece a crecer') + '</div>' +
-        (hoyAll.length ? '<div class="grow-bar"><div class="grow-bar-fill" style="width:' + pct + '%"></div></div>' : '') +
+  function buildBosqueSkeleton(wrap) {
+    wrap.innerHTML =
+      '<div class="section-label">Tu bosque</div>' +
+      '<div class="forest-stats">' +
+        '<div class="forest-stat"><div class="forest-stat-value" id="forestBloomedCount">0</div><div class="forest-stat-label">🌳 árboles en tu bosque</div></div>' +
+        '<div class="forest-stat"><div class="forest-stat-value" id="forestDeadCount">0</div><div class="forest-stat-label">🥀 días perdidos</div></div>' +
+      '</div>' +
+      '<div id="forestEmptyMsg" class="forest-empty" style="display:none;">Todavía no tienes árboles plantados — se irán agregando aquí cada noche.</div>' +
+      '<div class="forest-ground">' +
+        CLOUD_SVGS.map(function (c, i) {
+          return '<div class="forest-cloud" style="top:' + c.top + '%;width:' + c.w + 'px;animation-duration:' + c.dur + 's;animation-delay:-' + c.delay + 's;">' +
+            '<svg viewBox="0 0 100 40" width="' + c.w + '" height="' + (c.w * 0.4) + '"><ellipse cx="50" cy="27" rx="34" ry="11" fill="#fff"/><circle cx="30" cy="18" r="13" fill="#fff"/><circle cx="55" cy="13" r="15" fill="#fff"/><circle cx="76" cy="20" r="11" fill="#fff"/></svg>' +
+          '</div>';
+        }).join('') +
+        '<div class="forest-row" id="forestRow">' +
+          '<div class="forest-slot today">' +
+            '<div class="forest-today-stage" id="growTreeStage">' +
+              '<div class="forest-today-sway"><span class="forest-today-emoji" id="growTreeEmoji">🌱</span></div>' +
+            '</div>' +
+            '<span class="forest-today-tag">Hoy</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="grow-info">' +
+        '<div class="grow-label" id="growLabel"></div>' +
+        '<div class="grow-sub" id="growSub"></div>' +
+        '<div class="grow-bar" id="growBarWrap" style="display:none;"><div class="grow-bar-fill" id="growBarFill" style="width:0%"></div></div>' +
         '<div class="species-picker">' + TREE_TYPES.map(function (sp) {
-          return '<button type="button" class="species-btn' + (prefs.treeType === sp.id ? ' active' : '') + '" data-species="' + sp.id + '" title="' + sp.label + '">' + sp.emoji + '</button>';
+          return '<button type="button" class="species-btn" data-species="' + sp.id + '" title="' + sp.label + '">' + sp.emoji + '</button>';
         }).join('') + '</div>' +
       '</div>';
-
-    var statsHtml =
-      '<div class="forest-stats">' +
-        '<div class="forest-stat"><div class="forest-stat-value">' + bloomedCount + '</div><div class="forest-stat-label">🌳 árboles en tu bosque</div></div>' +
-        '<div class="forest-stat"><div class="forest-stat-value">' + deadCount + '</div><div class="forest-stat-label">🥀 días perdidos</div></div>' +
-      '</div>';
-
-    var gridHtml = forestDays.length
-      ? '<div class="forest-grid">' + forestDays.map(function (d) {
-          var isDead = d.status === 'dead';
-          var emoji = isDead ? '🥀' : treeInfo(d.tree_type).emoji;
-          var dd = new Date(d.date + 'T00:00:00');
-          var label = dd.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-          return '<div class="forest-tile' + (isDead ? ' dead' : '') + '"><span class="tile-emoji">' + emoji + '</span><span class="tile-date">' + label + '</span></div>';
-        }).join('') + '</div>'
-      : '<div class="forest-empty">Todavía no tienes árboles plantados. Completa todos tus pendientes de hoy y esta noche tu árbol florecerá aquí. 🌱</div>';
-
-    wrap.innerHTML = growHtml + statsHtml + gridHtml;
 
     wrap.querySelectorAll('.species-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         prefs.treeType = btn.dataset.species;
         savePrefs();
+        wrap.querySelectorAll('.species-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
+        lastGrowStageEmoji = null; // fuerza el rebote para reflejar la nueva especie
         renderBosque();
       });
     });
   }
+  function spawnGrowLeaves(stageEl) {
+    for (var i = 0; i < 5; i++) {
+      var leaf = document.createElement('span');
+      leaf.className = 'grow-leaf';
+      leaf.textContent = ['🍃','🌿','✨'][i % 3];
+      leaf.style.left = (30 + Math.random() * 40) + '%';
+      leaf.style.setProperty('--leaf-dx', (Math.random() * 40 - 20) + 'px');
+      leaf.style.animationDelay = (Math.random() * 150) + 'ms';
+      stageEl.appendChild(leaf);
+      (function (el) { setTimeout(function () { el.remove(); }, 2600); })(leaf);
+    }
+  }
+  function renderBosque() {
+    var wrap = document.getElementById('bosqueWrap');
+    if (!wrap.querySelector('.forest-ground')) buildBosqueSkeleton(wrap);
+
+    var hoyAll = tasks.filter(function (t) { return t.date === todayStr; });
+    var pct = todayGrowthPct();
+    var stage = growthStage(pct, hoyAll.length > 0);
+
+    wrap.querySelectorAll('.species-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.species === prefs.treeType); });
+
+    var treeEl = document.getElementById('growTreeEmoji');
+    var stageEl = document.getElementById('growTreeStage');
+    stageEl.style.transform = 'scale(' + stage.scale + ')';
+    stageEl.style.opacity = stage.opacity;
+    if (lastGrowStageEmoji !== null && lastGrowStageEmoji !== stage.emoji) {
+      treeEl.textContent = stage.emoji;
+      treeEl.classList.remove('popping');
+      void treeEl.offsetWidth; // fuerza reflow para poder re-disparar la animación
+      treeEl.classList.add('popping');
+      spawnGrowLeaves(stageEl);
+    } else if (lastGrowStageEmoji === null) {
+      treeEl.textContent = stage.emoji;
+    }
+    lastGrowStageEmoji = stage.emoji;
+
+    document.getElementById('growLabel').textContent = stage.label;
+    document.getElementById('growSub').textContent = hoyAll.length
+      ? pct + '% de tus pendientes de hoy completados'
+      : 'Agrega pendientes con fecha de hoy para que tu árbol empiece a crecer';
+    var barWrap = document.getElementById('growBarWrap');
+    barWrap.style.display = hoyAll.length ? '' : 'none';
+    if (hoyAll.length) document.getElementById('growBarFill').style.width = pct + '%';
+
+    var bloomedCount = forestDays.filter(function (d) { return d.status === 'bloomed'; }).length;
+    var deadCount = forestDays.filter(function (d) { return d.status === 'dead'; }).length;
+    var bloomedEl = document.getElementById('forestBloomedCount');
+    var deadEl = document.getElementById('forestDeadCount');
+    if (bloomedEl.textContent !== String(bloomedCount)) {
+      bloomedEl.textContent = bloomedCount;
+      bloomedEl.style.transform = 'scale(1.3)';
+      setTimeout(function () { bloomedEl.style.transform = 'scale(1)'; }, 30);
+    }
+    deadEl.textContent = deadCount;
+    document.getElementById('forestEmptyMsg').style.display = forestDays.length ? 'none' : '';
+
+    if (forestGridDirty) {
+      var row = document.getElementById('forestRow');
+      row.querySelectorAll('.forest-slot:not(.today)').forEach(function (el) { el.remove(); });
+      // Los árboles históricos entran antes que el de hoy, como un bosque que ya existía.
+      forestDays.slice().reverse().forEach(function (d) {
+        var isDead = d.status === 'dead';
+        var emoji = isDead ? '🥀' : treeInfo(d.tree_type).emoji;
+        var dd = new Date(d.date + 'T00:00:00');
+        var label = dd.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+        var slot = document.createElement('div');
+        slot.className = 'forest-slot' + (isDead ? ' dead' : '');
+        // Jitter por árbol: nada de dos árboles a la misma altura/ángulo/tamaño exactos,
+        // para que se vea como un bosque real y no una tabla de íconos alineados.
+        var lean = (Math.random() * 10 - 5).toFixed(1);
+        var lift = Math.floor(Math.random() * 8);
+        var scale = (0.86 + Math.random() * 0.26).toFixed(2);
+        slot.style.transform = 'translateY(-' + lift + 'px)';
+        slot.style.marginLeft = (2 + Math.random() * 8).toFixed(0) + 'px';
+        slot.innerHTML =
+          '<span class="slot-emoji" style="--lean:' + lean + 'deg;--scale:' + scale + ';animation-duration:' + (2.6 + Math.random() * 2.4).toFixed(2) + 's;animation-delay:' + (-Math.random() * 4).toFixed(2) + 's">' + emoji + '</span>' +
+          '<span class="slot-date">' + label + '</span>';
+        row.insertBefore(slot, row.querySelector('.forest-slot.today'));
+      });
+      forestGridDirty = false;
+    }
+  }
+
+  /* ---------- bosque: animalitos de vez en cuando (de fondo, con alas/patas de verdad) ---------- */
+  var CRITTER_DEFS = {
+    butterfly: {
+      type: 'flying', w: 30, h: 22,
+      svg: '<svg viewBox="0 0 40 30" width="30" height="22">' +
+        '<g class="wing-left"><ellipse cx="11" cy="11" rx="8.5" ry="6.5" fill="#f4a261"/></g>' +
+        '<g class="wing-right"><ellipse cx="29" cy="11" rx="8.5" ry="6.5" fill="#f4a261"/></g>' +
+        '<g class="wing-left"><ellipse cx="13" cy="19" rx="5" ry="4" fill="#e76f51"/></g>' +
+        '<g class="wing-right"><ellipse cx="27" cy="19" rx="5" ry="4" fill="#e76f51"/></g>' +
+        '<ellipse cx="20" cy="15" rx="1.4" ry="8.5" fill="#3d3d3d"/>' +
+      '</svg>'
+    },
+    bird: {
+      type: 'flying', w: 26, h: 18,
+      svg: '<svg viewBox="0 0 40 26" width="26" height="18">' +
+        '<ellipse cx="21" cy="15" rx="9" ry="6" fill="#5b7a9d"/>' +
+        '<circle cx="31" cy="10" r="3.6" fill="#5b7a9d"/>' +
+        '<path d="M34,9 L38,10.5 L34,12 Z" fill="#e9a23b"/>' +
+        '<g class="wing"><path d="M16,13 Q3,4 0,12 Q9,17 16,13 Z" fill="#3f5a78"/></g>' +
+      '</svg>'
+    },
+    rabbit: {
+      type: 'ground', w: 26, h: 20,
+      svg: '<svg viewBox="0 0 40 28" width="26" height="18">' +
+        '<ellipse cx="30" cy="4" rx="1.8" ry="6" fill="#d8d8d8" transform="rotate(18 30 4)"/>' +
+        '<ellipse cx="24" cy="3" rx="1.8" ry="6" fill="#d8d8d8" transform="rotate(-4 24 3)"/>' +
+        '<circle cx="27" cy="9" r="4.6" fill="#e2e2e2"/>' +
+        '<ellipse cx="16" cy="15" rx="11" ry="8" fill="#e2e2e2"/>' +
+        '<g class="leg-a"><rect x="10" y="19" width="3.4" height="7" rx="1.6" fill="#c7c7c7"/></g>' +
+        '<g class="leg-b"><rect x="20" y="19" width="3.4" height="7" rx="1.6" fill="#c7c7c7"/></g>' +
+      '</svg>'
+    },
+    fox: {
+      type: 'ground', w: 30, h: 20,
+      svg: '<svg viewBox="0 0 44 28" width="30" height="19">' +
+        '<path d="M30,3 L34,9 L27,9 Z" fill="#e07a3f"/>' +
+        '<ellipse cx="26" cy="12" rx="6.5" ry="5.5" fill="#e88a4c"/>' +
+        '<path d="M35,10 Q30,10 28,13" stroke="#e88a4c" stroke-width="4" fill="none" stroke-linecap="round"/>' +
+        '<ellipse cx="15" cy="16" rx="12" ry="7.5" fill="#e88a4c"/>' +
+        '<path d="M2,16 Q-4,12 0,22 Q7,22 8,16 Z" fill="#e07a3f"/>' +
+        '<g class="leg-a"><rect x="9" y="20" width="3.2" height="7" rx="1.5" fill="#c5602c"/></g>' +
+        '<g class="leg-b"><rect x="19" y="20" width="3.2" height="7" rx="1.5" fill="#c5602c"/></g>' +
+      '</svg>'
+    }
+  };
+  var CRITTER_IDS = Object.keys(CRITTER_DEFS);
+  function prefersReducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+  function spawnForestCritter() {
+    var ground = document.querySelector('#view-bosque .forest-ground');
+    if (!ground || !window.Element.prototype.animate) return;
+    var groundW = ground.offsetWidth, groundH = ground.offsetHeight;
+    if (!groundW || !groundH) return;
+    var id = CRITTER_IDS[Math.floor(Math.random() * CRITTER_IDS.length)];
+    var def = CRITTER_DEFS[id];
+    var isFlying = def.type === 'flying';
+    var ltr = Math.random() < 0.5;
+    var duration = (isFlying ? 7 : 9) + Math.random() * 3;
+    var el = document.createElement('div');
+    el.className = 'forest-critter type-' + id + ' ' + (isFlying ? 'flying' : 'hopping');
+    el.innerHTML = def.svg;
+    ground.appendChild(el);
+
+    var baseY = isFlying ? (groundH * 0.15 + Math.random() * groundH * 0.35) : (groundH - def.h - 4);
+    var startX = ltr ? -def.w : groundW + def.w;
+    var endX = ltr ? groundW + def.w : -def.w;
+    el.style.top = baseY + 'px';
+    el.style.left = '0px';
+
+    // Trayectoria con varios puntos intermedios (no una línea recta ni velocidad constante):
+    // los voladores ondulan como si aletearan; los que van por el piso avanzan a saltos.
+    var steps = 6;
+    var frames = [];
+    for (var i = 0; i <= steps; i++) {
+      var p = i / steps;
+      var x = startX + (endX - startX) * p;
+      var y;
+      if (isFlying) {
+        y = Math.sin(p * Math.PI * 2.4 + Math.random() * 0.6) * (groundH * 0.09);
+      } else {
+        y = -Math.abs(Math.sin(p * Math.PI * 3)) * 6; // saltitos, nunca baja de la línea base
+      }
+      var op = p < 0.1 ? p / 0.1 : (p > 0.9 ? (1 - p) / 0.1 : 1);
+      frames.push({ transform: 'translate(' + x + 'px,' + y + 'px)', opacity: Math.max(0, Math.min(1, op)) });
+    }
+    var anim = el.animate(frames, { duration: duration * 1000, easing: 'ease-in-out', fill: 'forwards' });
+    anim.onfinish = function () { el.remove(); };
+  }
+  function scheduleForestCritter() {
+    var delay = 7000 + Math.random() * 11000;
+    setTimeout(function () {
+      var view = document.getElementById('view-bosque');
+      if (!prefersReducedMotion() && view && view.classList.contains('active')) spawnForestCritter();
+      scheduleForestCritter();
+    }, delay);
+  }
+  scheduleForestCritter();
 
   /* ---------- push notifications ---------- */
   function urlBase64ToUint8Array(base64String) {
@@ -2568,7 +2854,10 @@
   var pomodoro = { seconds: 25 * 60, total: 25 * 60, running: false, mode: 'focus', timer: null };
 
   function pendingTasksForFocus() {
-    return tasks.filter(function (t) { return !t.done && inScope(t); });
+    // Igual que en Tareas: una tarea repetitiva (diario/días hábiles/cada X) puede tener
+    // hasta 60 ocurrencias futuras ya generadas en la base — acá se ve/elige como una sola
+    // tarea por serie (la próxima pendiente), nunca las 60 sueltas.
+    return collapseSeriesForList(tasks.filter(function (t) { return !t.done && inScope(t); }));
   }
   function pickFocusTask() {
     var pending = pendingTasksForFocus();
