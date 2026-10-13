@@ -65,9 +65,11 @@ create policy "work files delete" on storage.objects for delete to authenticated
 create or replace function public.notify_assignment()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
+  -- Solo avisa si alguien con sesión le asigna el pendiente a OTRA persona (autoasignarse no manda correo)
   if new.owner_id is not null
-     and (tg_op = 'INSERT' or new.owner_id is distinct from old.owner_id)
-     and new.owner_id is distinct from auth.uid() then
+     and auth.uid() is not null
+     and new.owner_id <> auth.uid()
+     and (tg_op = 'INSERT' or new.owner_id is distinct from old.owner_id) then
     perform net.http_post(
       url := 'https://ecmenbgaeqvojfcgyjgc.supabase.co/functions/v1/notify-assign',
       headers := jsonb_build_object(

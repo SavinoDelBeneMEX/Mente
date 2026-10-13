@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
   const { data: it } = await supabase.from("work_items")
     .select("id,title,description,requester_name,client,deadline,priority,status,owner_id").eq("id", itemId).maybeSingle();
   if (!it?.owner_id || it.status === "hecho") return Response.json({ skipped: true });
+  if (!by || by === it.owner_id) return Response.json({ skipped: "autoasignado" }); // autoasignarse no manda correo
 
   const ids = [it.owner_id, by].filter(Boolean) as string[];
   const { data: people } = await supabase.from("profiles").select("id,email,full_name").in("id", ids);
