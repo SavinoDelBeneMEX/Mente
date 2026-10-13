@@ -391,6 +391,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
   <div class="d-head"><h2 id="team-h">Equipo</h2><button class="btn closex" type="button" data-close aria-label="Cerrar"><svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button></div>
   <div class="field"><label for="t-myname">Tu nombre (aparece en la bitácora y en la firma de los correos)</label>
     <div class="inline"><input class="inp" id="t-myname" placeholder="Nombre y apellido"><button class="btn" type="button" id="t-savename">Guardar</button></div></div>
+  <label class="check"><input type="checkbox" id="t-digest"> Mandarme cada mañana a las 7:30 un correo con mis pendientes del día</label>
   <div class="section">
     <h3>Miembros <small id="t-count"></small></h3>
     <ul class="members" id="t-list"></ul>
@@ -463,7 +464,7 @@ async function loadAll(){
     sb.from('work_items').select('*'),
     sb.from('work_updates').select('*').order('at'),
     sb.from('team_members').select('user_id'),
-    sb.from('profiles').select('id,email,full_name')
+    sb.from('profiles').select('id,email,full_name,daily_digest')
   ]);
   const err = items.error || ups.error || team.error || people.error;
   if (err){ notice('No se pudieron cargar los pendientes. Recarga la página.'); console.error(err); return; }
@@ -877,6 +878,7 @@ function renderTeam(){
 }
 $('#open-team').addEventListener('click', () => {
   $('#t-myname').value = myName();
+  $('#t-digest').checked = !S.people[S.uid] || S.people[S.uid].daily_digest !== false;
   renderTeam(); present($('#scrim')); present($('#team'));
 });
 $('#t-savename').addEventListener('click', async () => {
@@ -885,6 +887,13 @@ $('#t-savename').addEventListener('click', async () => {
   if (r.error) return fail(r.error);
   if (S.people[S.uid]) S.people[S.uid].full_name = name;
   render(); toast('Nombre guardado');
+});
+$('#t-digest').addEventListener('change', async e => {
+  const on = e.target.checked;
+  const r = await sb.from('profiles').update({daily_digest: on}).eq('id', S.uid);
+  if (r.error){ e.target.checked = !on; return fail(r.error); }
+  if (S.people[S.uid]) S.people[S.uid].daily_digest = on;
+  toast(on ? 'Te llegará el resumen cada mañana' : 'Resumen diario apagado');
 });
 $('#t-add').addEventListener('click', async () => {
   const email = $('#t-email').value.trim().toLowerCase(); if (!email) return;
