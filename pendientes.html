@@ -194,6 +194,17 @@ input[type=date].inp{font-variant-numeric:tabular-nums}
 .quick .f-add{align-self:end}
 .client{font-weight:600;color:var(--ink)}
 .stuck{color:var(--danger)!important}
+/* Pendientes | Terminados */
+.viewtabs{display:flex;gap:2px;background:var(--fill);border-radius:var(--r-md);padding:3px;margin-top:6px}
+.viewtabs button{flex:1;border:0;background:transparent;border-radius:11px;padding:10px 12px;font-size:15.5px;font-weight:600;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .22s var(--ease),color .2s,box-shadow .22s var(--ease),transform .14s var(--ease)}
+.viewtabs button:active{transform:scale(.97)}
+.viewtabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-pill)}
+.viewtabs b{font-size:12.5px;font-weight:600;padding:1px 8px;border-radius:var(--r-pill);background:var(--fill);color:var(--muted);font-variant-numeric:tabular-nums}
+.viewtabs button[data-view="done"][aria-selected="true"] b{background:var(--ok-soft);color:var(--ok)}
+@media (prefers-color-scheme:dark){.viewtabs button[aria-selected="true"]{background:#636366}}
+.st.ontime{background:var(--ok-soft);color:var(--ok)}
+.st.late{background:var(--danger-soft);color:var(--danger)}
+.st.nodate{background:var(--fill);color:var(--muted)}
 .files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .files li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:.5px solid var(--line)}
 .files li:first-child{border-top:0}
@@ -367,6 +378,11 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
 
   <div class="notice" id="notice" hidden></div>
 
+  <div class="viewtabs" role="tablist" aria-label="Ver">
+    <button type="button" role="tab" data-view="open" aria-selected="true">Pendientes <b id="vt-open">–</b></button>
+    <button type="button" role="tab" data-view="done" aria-selected="false">Terminados <b id="vt-done">–</b></button>
+  </div>
+
   <section class="stats" id="stats" aria-label="Resumen"></section>
 
   <form class="quick" id="quick" autocomplete="off">
@@ -392,7 +408,10 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
     </div>
     <label class="searchbox"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.8" stroke="currentColor" stroke-width="1.7"/><path d="M10.6 10.6 14 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><input class="inp" id="f-q" type="search" placeholder="Buscar" aria-label="Buscar actividad o solicitante"></label>
     <select class="inp" id="f-status" aria-label="Estado">
-      <option value="open">Abiertos</option><option value="pendiente">Pendiente</option><option value="proceso">En proceso</option><option value="espera">En espera de respuesta</option><option value="hecho">Terminados</option><option value="all">Todos</option>
+      <option value="open">Abiertos</option><option value="pendiente">Pendiente</option><option value="proceso">En proceso</option><option value="espera">En espera de respuesta</option>
+    </select>
+    <select class="inp" id="f-period" aria-label="Periodo" hidden>
+      <option value="week">Esta semana</option><option value="lastweek">Semana pasada</option><option value="month" selected>Este mes</option><option value="lastmonth">Mes pasado</option><option value="d90">Últimos 90 días</option><option value="year">Este año</option><option value="all">Todo</option>
     </select>
     <select class="inp" id="f-client" aria-label="Cliente o proveedor"><option value="">Todos los clientes y proveedores</option></select>
     <select class="inp" id="f-req" aria-label="Solicitante"><option value="">Todos los solicitantes</option></select>
@@ -485,7 +504,7 @@ const CHECK = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="
 
 const S = {
   tasks: [], ready: false, uid: null, email: '', people: {}, team: [],
-  filter: {q:'', scope:'mine', status:'open', req:'', client:'', stage:'all'}, files: {}, invites: [], useStages: false,
+  filter: {q:'', scope:'mine', status:'open', req:'', client:'', stage:'all', period:'month'}, view: 'open', files: {}, invites: [], useStages: false,
   openId: null, mail: null, queue: {}, deleteArmed: false, channel: null
 };
 const byId = id => S.tasks.find(t => t.id === id);
@@ -562,13 +581,42 @@ function inScope(t){
   if (f.scope === 'team' && t.ownerId === S.uid) return false;
   return true;
 }
-const stageOn = () => S.useStages && S.filter.scope === 'mine';
+/* Periodos: week, lastweek, month, lastmonth, d90, year, all. Devuelve fechas YYYY-MM-DD. */
+function periodRange(k){
+  const d = new Date(), y = d.getFullYear(), m = d.getMonth();
+  let from, to = new Date(d);
+  const monday = x => { const r = new Date(x); r.setDate(r.getDate() - ((r.getDay()+6)%7)); return r; };
+  if (k === 'week') from = monday(d);
+  else if (k === 'lastweek'){ from = monday(d); from.setDate(from.getDate()-7); to = new Date(from); to.setDate(to.getDate()+6); }
+  else if (k === 'month') from = new Date(y,m,1);
+  else if (k === 'lastmonth'){ from = new Date(y,m-1,1); to = new Date(y,m,0); }
+  else if (k === 'd90'){ from = new Date(d); from.setDate(from.getDate()-89); }
+  else if (k === 'all'){
+    const first = S.tasks.filter(t => t.completedAt).map(t => ymd(new Date(t.completedAt))).sort()[0];
+    from = first ? parseYmd(first) : new Date(y,0,1);
+  }
+  else from = new Date(y,0,1);
+  return {from: ymd(from), to: ymd(to)};
+}
+const doneDay = t => t.completedAt ? ymd(new Date(t.completedAt)) : '';
+function onTimeInfo(t){
+  if (!t.deadline) return {cls:'nodate', label:'Sin fecha'};
+  const late = Math.round((parseYmd(doneDay(t)) - parseYmd(t.deadline)) / 86400000);
+  return late > 0 ? {cls:'late', label:'Tarde ' + late + ' d'} : {cls:'ontime', label:'A tiempo'};
+}
+const stageOn = () => S.useStages && S.filter.scope === 'mine' && S.view === 'open';
 function visible(ignoreStage){
   const f = S.filter, q = f.q.trim().toLowerCase();
   return S.tasks.filter(t => {
     if (!inScope(t)) return false;
-    if (f.status === 'open' && t.status === 'hecho') return false;
-    if (!['open','all'].includes(f.status) && t.status !== f.status) return false;
+    if (S.view === 'done'){
+      if (t.status !== 'hecho') return false;
+      const p = periodRange(f.period), d = doneDay(t);
+      if (!d || d < p.from || d > p.to) return false;
+    } else {
+      if (t.status === 'hecho') return false;
+      if (f.status !== 'open' && t.status !== f.status) return false;
+    }
     if (f.req && (t.requesterName||'').trim() !== f.req) return false;
     if (f.client && (t.client||'').trim().toLowerCase() !== f.client.toLowerCase()) return false;
     if (!ignoreStage && stageOn() && f.stage !== 'all' && (f.stage === 'stuck' ? !isStuck(t) : f.stage === 'none' ? !!t.stage : t.stage !== f.stage)) return false;
@@ -622,6 +670,10 @@ function setStatus(id, status){
 }
 
 /* ---------- render principal ---------- */
+function visibleDoneCount(){
+  const keep = S.view; S.view = 'done';
+  const n = visible().length; S.view = keep; return n;
+}
 function renderStats(){
   const scoped = S.tasks.filter(inScope);
   const open = scoped.filter(t => t.status !== 'hecho');
@@ -638,17 +690,37 @@ function renderStats(){
     wait: '<path d="M4.5 2.5h7M4.5 13.5h7M5.2 2.5c0 3 5.6 3 5.6 5.5S5.2 10.5 5.2 13.5M10.8 2.5c0 3-5.6 3-5.6 5.5s5.6 2.5 5.6 5.5"/>',
     ok: '<path d="M3.5 8.4l2.9 2.8 6.1-6.4"/>'
   };
+  $('#vt-open').textContent = S.ready ? open.length : '–';
+  $('#vt-done').textContent = S.ready ? visibleDoneCount() : '–';
+  if (S.view === 'done'){
+    const list = visible();
+    const withDate = list.filter(t => t.deadline);
+    const onTime = withDate.filter(t => onTimeInfo(t).cls === 'ontime').length;
+    const lateN = withDate.length - onTime;
+    const days = list.filter(t => t.createdAt).map(t => Math.max(0, Math.round((parseYmd(doneDay(t)) - parseYmd(ymd(new Date(t.createdAt)))) / 86400000)));
+    const avg = days.length ? (days.reduce((a,b) => a + b, 0) / days.length) : 0;
+    $('#stats').innerHTML = [
+      ['ok', 'ok', list.length, 'Terminados'],
+      ['ok', 'ok', withDate.length ? Math.round(onTime / withDate.length * 100) + '%' : '–', 'A tiempo'],
+      ['late', 'late', lateN, 'Con retraso'],
+      ['', 'soon', days.length ? (avg < 10 ? avg.toFixed(1) : Math.round(avg)) + ' d' : '–', 'Promedio para terminar'],
+      ['wait', 'open', new Set(list.map(t => (t.client||'').trim().toLowerCase()).filter(Boolean)).size, 'Clientes / proveedores']
+    ].map(([c,k,n,l]) => `<div class="stat ${c}">${ic(ICON[k])}<b>${S.ready ? n : '–'}</b><span>${l}</span></div>`).join('');
+    return;
+  }
   $('#stats').innerHTML = [
     ['', 'open', open.length, 'Abiertos'], ['late', 'late', late, 'Vencidos'], ['soon', 'soon', soon, 'Hoy o mañana'],
     ['wait', 'wait', wait, 'Esperando respuesta'], ['ok', 'ok', done7, 'Terminados 7 días']
   ].map(([c,k,n,l]) => `<div class="stat ${c}">${ic(ICON[k])}<b>${S.ready ? n : '–'}</b><span>${l}</span></div>`).join('');
 }
 function rowHtml(t){
-  const d = dueInfo(t), p = PRI[t.priority] ? t.priority : 'media';
+  const p = PRI[t.priority] ? t.priority : 'media';
+  const d = S.view === 'done' && t.completedAt ? {cls:'done', label: fmtDate(doneDay(t))} : dueInfo(t);
+  const st = S.view === 'done' ? onTimeInfo(t) : {cls: t.status, label: STATUS[t.status] || 'Pendiente'};
   const nUp = (t.updates||[]).filter(u => u.kind === 'nota' || u.kind === 'correo').length;
   const meta = [];
   if (t.requesterName) meta.push(`<span><span class="k">Solicitó</span> ${esc(t.requesterName)}</span>`);
-  if (S.filter.scope !== 'team') meta.push(`<span><span class="k">Responsable</span> ${esc(pname(t.ownerId))}</span>`);
+  if (S.filter.scope !== 'team' || S.view === 'done') meta.push(`<span><span class="k">Responsable</span> ${esc(pname(t.ownerId))}</span>`);
   if (stageOn() && t.stage && STAGE[t.stage] && t.status !== 'hecho'){
     const d = daysInStage(t), stuck = isStuck(t);
     const label = (S.filter.stage === 'all' || S.filter.stage === 'stuck' ? STAGE[t.stage].l + ' · ' : '') + (stuck ? 'atorado ' : '') + d + ' d';
@@ -663,14 +735,29 @@ function rowHtml(t){
     <button class="row-main" type="button" data-act="open"><span class="row-title">${esc(t.title)}</span><span class="row-meta">${meta.join('')}</span></button>
     <span class="due ${d.cls}">${esc(d.label)}</span>
     <span class="pri ${p}">${PRI[p].l}</span>
-    <span class="st ${esc(t.status)}">${esc(STATUS[t.status]||'Pendiente')}</span>
+    <span class="st ${esc(st.cls)}">${esc(st.label)}</span>
   </li>`;
+}
+function renderDone(list){
+  const today = todayStr(), y = new Date(); y.setDate(y.getDate() - 1);
+  const yest = ymd(y);
+  const by = new Map();
+  [...list].sort((a,b) => (b.completedAt||'').localeCompare(a.completedAt||'')).forEach(t => {
+    const k = doneDay(t); if (!by.has(k)) by.set(k, []); by.get(k).push(t);
+  });
+  return [...by.entries()].map(([day, ts]) => {
+    const label = day === today ? 'Hoy' : day === yest ? 'Ayer' : longDate(day).replace(/^./, c => c.toUpperCase());
+    return '<section class="group done"><div class="group-h"><h2>' + esc(label) + '</h2><span class="n">' + ts.length + '</span></div><ul class="rows">' + ts.map(rowHtml).join('') + '</ul></section>';
+  }).join('');
 }
 function renderList(){
   const el = $('#list');
   if (!S.ready){ el.innerHTML = `<div class="empty"><strong>Cargando pendientes…</strong>Un momento.</div>`; return; }
   const list = visible();
   if (!S.tasks.length){ el.innerHTML = `<div class="empty"><strong>Aún no hay pendientes</strong>Escribe el primero en la barra de arriba: qué hay que hacer, quién lo pidió y para cuándo.</div>`; return; }
+  if (!list.length && S.view === 'done'){
+    el.innerHTML = '<div class="empty"><strong>Nada terminado en este periodo</strong>Cambia el periodo arriba o marca un pendiente con el círculo para que aparezca aquí.</div>'; return;
+  }
   if (!list.length){
     const plain = S.filter.status === 'open' && !S.filter.q && !S.filter.req;
     const msg = plain && S.filter.scope === 'mine'
@@ -680,6 +767,7 @@ function renderList(){
         : '<strong>Nada con estos filtros</strong>Cambia el estado, el solicitante o la búsqueda.';
     el.innerHTML = '<div class="empty">' + msg + '</div>'; return;
   }
+  if (S.view === 'done'){ el.innerHTML = renderDone(list); return; }
   if (S.filter.scope === 'team'){ el.innerHTML = renderByPerson(list); return; }
   const done = list.filter(t => t.status === 'hecho').sort((a,b) => (b.completedAt||'').localeCompare(a.completedAt||''));
   const open = list.filter(t => t.status !== 'hecho').sort(sortOpen);
@@ -753,6 +841,9 @@ function renderFilters(){
   document.querySelectorAll('.seg [data-scope]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.scope === S.filter.scope)));
 }
 function render(){
+  const isDone = S.view === 'done';
+  document.querySelectorAll('.viewtabs [data-view]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === S.view)));
+  $('#quick').hidden = isDone; $('#f-status').hidden = isDone; $('#f-period').hidden = !isDone;
   renderStats(); renderFilters(); renderStageTabs(); renderList();
   if (S.openId) syncDrawer();
   if (!$('#report').hidden) updateReportSummary();
@@ -796,9 +887,15 @@ $('#stage-tabs').addEventListener('click', e => {
   b.scrollIntoView({block:'nearest', inline:'nearest', behavior:'smooth'});
 });
 $('#f-client').addEventListener('change', e => { S.filter.client = e.target.value; render(); });
-$('#f-q').addEventListener('input', e => { S.filter.q = e.target.value; renderList(); });
+document.querySelector('.viewtabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-view]'); if (!b || S.view === b.dataset.view) return;
+  S.view = b.dataset.view;
+  render();
+});
+$('#f-period').addEventListener('change', e => { S.filter.period = e.target.value; render(); });
+$('#f-q').addEventListener('input', e => { S.filter.q = e.target.value; render(); });
 $('#f-status').addEventListener('change', e => { S.filter.status = e.target.value; renderList(); });
-$('#f-req').addEventListener('change', e => { S.filter.req = e.target.value; renderList(); });
+$('#f-req').addEventListener('change', e => { S.filter.req = e.target.value; render(); });
 
 $('#list').addEventListener('click', e => {
   const row = e.target.closest('.row'); if (!row) return;
@@ -806,7 +903,9 @@ $('#list').addEventListener('click', e => {
   const t = byId(row.dataset.id); if (!t) return;
   if (act.dataset.act === 'toggle'){
     if (t.status !== 'hecho'){ S.justDone = t.id; try { navigator.vibrate && navigator.vibrate(8); } catch {} }
-    setStatus(t.id, t.status === 'hecho' ? 'pendiente' : 'hecho');
+    const wasDone = t.status === 'hecho';
+    setStatus(t.id, wasDone ? 'pendiente' : 'hecho');
+    toast(wasDone ? 'Reabierto: volvió a Pendientes' : 'Terminado. Lo encuentras en la pestaña Terminados');
   }
   else openDrawer(t.id);
 });
@@ -1160,15 +1259,8 @@ $('#t-list').addEventListener('click', async e => {
 
 /* ---------- reporte Excel ---------- */
 function setPreset(k){
-  const d = new Date(), y = d.getFullYear(), m = d.getMonth();
-  let from, to = new Date(d);
-  const monday = x => { const r = new Date(x); r.setDate(r.getDate() - ((r.getDay()+6)%7)); return r; };
-  if (k === 'week') from = monday(d);
-  else if (k === 'lastweek'){ from = monday(d); from.setDate(from.getDate()-7); to = new Date(from); to.setDate(to.getDate()+6); }
-  else if (k === 'month') from = new Date(y,m,1);
-  else if (k === 'lastmonth'){ from = new Date(y,m-1,1); to = new Date(y,m,0); }
-  else from = new Date(y,0,1);
-  $('#r-from').value = ymd(from); $('#r-to').value = ymd(to); updateReportSummary();
+  const r = periodRange(k);
+  $('#r-from').value = r.from; $('#r-to').value = r.to; updateReportSummary();
 }
 function reportSet(){
   const from = $('#r-from').value, to = $('#r-to').value;
@@ -1191,7 +1283,13 @@ function updateReportSummary(){
   $('#r-go').disabled = !(r.done.length || r.open.length);
 }
 $('#open-report').addEventListener('click', () => {
-  if (!$('#r-from').value) setPreset('month');
+  if (S.view === 'done'){
+    const p = periodRange(S.filter.period);
+    $('#r-from').value = p.from; $('#r-to').value = p.to;
+    $('#r-mine').checked = S.filter.scope === 'mine';
+    $('#r-open').checked = false;
+    $('#r-client').value = S.filter.client;
+  } else if (!$('#r-from').value) setPreset('month');
   $('#r-msg').textContent = '';
   present($('#scrim')); present($('#report')); updateReportSummary();
 });
