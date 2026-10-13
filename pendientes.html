@@ -179,6 +179,18 @@ input[type=date].inp{font-variant-numeric:tabular-nums}
 .st.proceso{background:var(--accent-soft);color:var(--accent)}
 .st.espera{background:var(--indigo-soft);color:var(--indigo)}
 .st.hecho{background:var(--ok-soft);color:var(--ok)}
+/* etapas (solo cuentas con stages_enabled) */
+.stage-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-inline:calc(-1 * var(--gutter));padding:2px var(--gutter) 4px;scroll-padding-inline:var(--gutter)}
+.stage-tabs::-webkit-scrollbar{display:none}
+.stage-tab{flex:none;display:inline-flex;align-items:center;gap:7px;border:0;background:var(--surface);color:var(--ink);border-radius:var(--r-pill);padding:7px 14px;font-size:14px;font-weight:500;box-shadow:var(--shadow);transition:transform .14s var(--ease),background .2s var(--ease),color .2s}
+.stage-tab:active{transform:scale(.95)}
+.stage-tab b{font-weight:600;font-size:12.5px;min-width:20px;padding:1px 6px;border-radius:var(--r-pill);background:var(--fill);color:var(--muted);font-variant-numeric:tabular-nums;text-align:center}
+.stage-tab[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.stage-tab[aria-pressed="true"] b{background:rgba(255,255,255,.22);color:inherit}
+.stage-tab i{width:8px;height:8px;border-radius:50%;background:var(--sc,var(--faint))}
+.stage{display:inline-flex;align-items:center;gap:5px;font-weight:600;color:var(--sc,var(--muted))}
+.stage::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.quick.has-stage{grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) 145px 115px 160px 160px auto}
 .empty{padding:44px 20px;text-align:center;color:var(--muted);background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow)}
 .empty strong{display:block;color:var(--ink);font-family:var(--f-display);font-size:19px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
 
@@ -351,6 +363,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
     <div class="field"><label for="q-due">Fecha compromiso</label><input class="inp" id="q-due" type="date"></div>
     <div class="field"><label for="q-pri">Prioridad</label>
       <select class="inp" id="q-pri"><option value="urgente">Urgente</option><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></div>
+    <div class="field" id="q-stage-f" hidden><label for="q-stage">Etapa</label><select class="inp" id="q-stage"></select></div>
     <div class="field"><label for="q-owner">Responsable</label><select class="inp" id="q-owner"></select></div>
     <div class="field f-add"><button class="btn primary" type="submit" id="q-add">Agregar</button></div>
   </form>
@@ -368,6 +381,8 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
     </select>
     <select class="inp" id="f-req" aria-label="Solicitante"><option value="">Todos los solicitantes</option></select>
   </div>
+
+  <nav class="stage-tabs" id="stage-tabs" hidden aria-label="Etapas"></nav>
 
   <main id="list"></main>
 </div>
@@ -438,13 +453,15 @@ const nowIso = () => new Date().toISOString();
 
 const PRI = {urgente:{l:'Urgente',r:0}, alta:{l:'Alta',r:1}, media:{l:'Media',r:2}, baja:{l:'Baja',r:3}};
 const STATUS = {pendiente:'Pendiente', proceso:'En proceso', espera:'En espera de respuesta', hecho:'Terminado'};
-const KIND = {alta:'Alta', nota:'Seguimiento', estado:'Estado', correo:'Correo', resp:'Responsable', prioridad:'Prioridad', fecha:'Fecha'};
-const COL = {title:'title', description:'description', requesterName:'requester_name', requesterEmail:'requester_email', deadline:'deadline', priority:'priority', status:'status', ownerId:'owner_id', completedAt:'completed_at'};
+const KIND = {alta:'Alta', nota:'Seguimiento', estado:'Estado', correo:'Correo', resp:'Responsable', prioridad:'Prioridad', fecha:'Fecha', etapa:'Etapa'};
+const STAGES = [['inicio','Por iniciar','#8e8e93'],['revision','Revisión','#007aff'],['firma','Firma','#af52de'],['cliente','Enviado al cliente','#ff9500'],['proveedor','Enviado a proveedor','#00a5a0']];
+const STAGE = Object.fromEntries(STAGES.map(([k,l,c]) => [k, {l, c}]));
+const COL = {title:'title', description:'description', requesterName:'requester_name', requesterEmail:'requester_email', deadline:'deadline', priority:'priority', status:'status', ownerId:'owner_id', completedAt:'completed_at', stage:'stage'};
 const CHECK = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6.3l2.3 2.2 4.7-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 const S = {
   tasks: [], ready: false, uid: null, email: '', people: {}, team: [],
-  filter: {q:'', scope:'mine', status:'open', req:''}, invites: [],
+  filter: {q:'', scope:'mine', status:'open', req:'', stage:'all'}, invites: [], useStages: false,
   openId: null, mail: null, queue: {}, deleteArmed: false, channel: null
 };
 const byId = id => S.tasks.find(t => t.id === id);
@@ -466,7 +483,7 @@ function fail(err){ console.error(err); toast('No se pudo guardar. Revisa tu con
 function toTask(row, ups){
   return {
     id: row.id, title: row.title, description: row.description, requesterName: row.requester_name, requesterEmail: row.requester_email,
-    deadline: row.deadline, priority: row.priority, status: row.status, ownerId: row.owner_id, createdBy: row.created_by,
+    deadline: row.deadline, priority: row.priority, status: row.status, stage: row.stage || null, ownerId: row.owner_id, createdBy: row.created_by,
     createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at, updates: ups || []
   };
 }
@@ -475,7 +492,7 @@ async function loadAll(){
     sb.from('work_items').select('*'),
     sb.from('work_updates').select('*').order('at'),
     sb.from('team_members').select('user_id'),
-    sb.from('profiles').select('id,email,full_name,daily_digest'),
+    sb.from('profiles').select('id,email,full_name,daily_digest,stages_enabled'),
     sb.from('team_invites').select('email,invited_at').is('accepted_at', null).order('invited_at', {ascending: false})
   ]);
   const err = items.error || ups.error || team.error || people.error;
@@ -486,6 +503,7 @@ async function loadAll(){
   S.tasks = items.data.map(r => toTask(r, byItem[r.id]));
   S.team = team.data.map(r => r.user_id);
   S.people = Object.fromEntries(people.data.map(p => [p.id, p]));
+  S.useStages = !!(S.people[S.uid] && S.people[S.uid].stages_enabled);
   S.ready = true; notice('');
   render();
 }
@@ -507,13 +525,15 @@ function inScope(t){
   if (f.scope === 'team' && t.ownerId === S.uid) return false;
   return true;
 }
-function visible(){
+const stageOn = () => S.useStages && S.filter.scope === 'mine';
+function visible(ignoreStage){
   const f = S.filter, q = f.q.trim().toLowerCase();
   return S.tasks.filter(t => {
     if (!inScope(t)) return false;
     if (f.status === 'open' && t.status === 'hecho') return false;
     if (!['open','all'].includes(f.status) && t.status !== f.status) return false;
     if (f.req && (t.requesterName||'').trim() !== f.req) return false;
+    if (!ignoreStage && stageOn() && f.stage !== 'all' && (f.stage === 'none' ? !!t.stage : t.stage !== f.stage)) return false;
     if (q && !`${t.title} ${t.description||''} ${t.requesterName||''}`.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -591,6 +611,7 @@ function rowHtml(t){
   const meta = [];
   if (t.requesterName) meta.push(`<span><span class="k">Solicitó</span> ${esc(t.requesterName)}</span>`);
   if (S.filter.scope !== 'team') meta.push(`<span><span class="k">Responsable</span> ${esc(pname(t.ownerId))}</span>`);
+  if (stageOn() && t.stage && STAGE[t.stage] && S.filter.stage === 'all') meta.unshift(`<span class="stage" style="--sc:${STAGE[t.stage].c}">${STAGE[t.stage].l}</span>`);
   if (nUp) meta.push(`<span>${nUp} seguimiento${nUp>1?'s':''}</span>`);
   return `<li class="row pri-${p}${t.status==='hecho'?' is-done':''}${S.justDone===t.id?' just':''}" data-id="${esc(t.id)}">
     <button class="tick" type="button" data-act="toggle" aria-label="${t.status==='hecho'?'Reabrir':'Marcar como terminado'}">${CHECK}</button>
@@ -651,6 +672,22 @@ function renderByPerson(list){
     return '<section class="group person"><div class="group-h">' + av + '<h2>' + esc(id ? pname(id) : 'Sin responsable') + '</h2><span class="n">' + parts.join(' · ') + '</span></div><ul class="rows">' + [...open, ...done].map(rowHtml).join('') + '</ul></section>';
   }).join('');
 }
+function renderStageTabs(){
+  const nav = $('#stage-tabs');
+  nav.hidden = !stageOn();
+  $('#q-stage-f').hidden = !S.useStages;
+  $('#quick').classList.toggle('has-stage', S.useStages);
+  if (S.useStages){
+    const qs = $('#q-stage'), keep = qs.value;
+    qs.innerHTML = '<option value="">Sin etapa</option>' + STAGES.map(([k,l]) => '<option value="' + k + '">' + l + '</option>').join('');
+    qs.value = keep;
+  }
+  if (nav.hidden) return;
+  const base = visible(true);
+  const count = k => base.filter(t => k === 'all' ? true : k === 'none' ? !t.stage : t.stage === k).length;
+  const tabs = [['all','Todas',null], ...STAGES, ['none','Sin etapa',null]].filter(([k]) => k !== 'none' || count('none') || S.filter.stage === 'none');
+  nav.innerHTML = tabs.map(([k,l,c]) => '<button type="button" class="stage-tab" data-stage="' + k + '" aria-pressed="' + (S.filter.stage === k) + '">' + (c ? '<i style="--sc:' + c + '"></i>' : '') + l + ' <b>' + count(k) + '</b></button>').join('');
+}
 function renderFilters(){
   const qo = $('#q-owner'), keep = qo.value || S.uid;
   const ids = [...new Set([S.uid, ...S.team].filter(Boolean))].sort((a,b) => (b === S.uid) - (a === S.uid) || pname(a).localeCompare(pname(b),'es'));
@@ -663,7 +700,7 @@ function renderFilters(){
   document.querySelectorAll('.seg [data-scope]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.scope === S.filter.scope)));
 }
 function render(){
-  renderStats(); renderFilters(); renderList();
+  renderStats(); renderFilters(); renderStageTabs(); renderList();
   if (S.openId) syncDrawer();
   if (!$('#report').hidden) updateReportSummary();
   if (!$('#team').hidden) renderTeam();
@@ -683,6 +720,7 @@ $('#quick').addEventListener('submit', async e => {
     const ins = await sb.from('work_items').insert({
       title, requester_name: $('#q-req').value.trim(), requester_email: $('#q-mail').value.trim(),
       deadline: $('#q-due').value || null, priority: $('#q-pri').value, status: 'pendiente',
+      stage: S.useStages ? ($('#q-stage').value || null) : null,
       owner_id: $('#q-owner').value || S.uid, created_by: S.uid
     }).select().single();
     if (ins.error) return fail(ins.error);
@@ -696,6 +734,13 @@ $('#quick').addEventListener('submit', async e => {
 
 /* ---------- filtros ---------- */
 document.querySelector('.seg').addEventListener('click', e => { const b = e.target.closest('[data-scope]'); if (!b) return; S.filter.scope = b.dataset.scope; render(); });
+$('#stage-tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-stage]'); if (!b) return;
+  S.filter.stage = b.dataset.stage;
+  if (STAGE[S.filter.stage]) $('#q-stage').value = S.filter.stage;
+  render();
+  b.scrollIntoView({block:'nearest', inline:'nearest', behavior:'smooth'});
+});
 $('#f-q').addEventListener('input', e => { S.filter.q = e.target.value; renderList(); });
 $('#f-status').addEventListener('change', e => { S.filter.status = e.target.value; renderList(); });
 $('#f-req').addEventListener('change', e => { S.filter.req = e.target.value; renderList(); });
@@ -780,6 +825,7 @@ function buildDrawer(){
       <div class="field"><label for="d-status">Estado</label><select class="inp" id="d-status" data-field="status">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
       <div class="field"><label for="d-pri">Prioridad</label><select class="inp" id="d-pri" data-field="priority">${Object.entries(PRI).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')}</select></div>
       <div class="field"><label for="d-due">Fecha compromiso</label><input class="inp" type="date" id="d-due" data-field="deadline"></div>
+      <div class="field"${S.useStages ? '' : ' hidden'}><label for="d-stage">Etapa</label><select class="inp" id="d-stage" data-field="stage"><option value="">Sin etapa</option>${STAGES.map(([k,l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
       <div class="field"><label for="d-owner">Responsable</label><select class="inp" id="d-owner"></select></div>
       <div class="field"><label for="d-req">Lo solicitó</label><input class="inp" id="d-req" list="reqs" data-field="requesterName"></div>
       <div class="field"><label for="d-mail">Correo de quien solicita</label><input class="inp" type="email" id="d-mail" data-field="requesterEmail"></div>
@@ -853,10 +899,11 @@ function wireDrawer(){
       if (field === 'title' && !v){ el.value = byId(id).title; return; }
       if (field === 'status') return setStatus(id, v);
       patchTask(id, t => {
-        const val = field === 'deadline' ? (v || null) : v;
+        const val = (field === 'deadline' || field === 'stage') ? (v || null) : v;
         if ((t[field] ?? '') === (val ?? '')) return null;
         const patch = {[field]: val}; let log = null;
         if (field === 'priority') log = {kind:'prioridad', text:`Prioridad: ${PRI[val].l}`};
+        if (field === 'stage') log = {kind:'etapa', text: val ? `Pasó a ${STAGE[val].l}` : 'Sin etapa'};
         if (field === 'deadline') log = {kind:'fecha', text: val ? `Fecha compromiso: ${fmtDate(val)}` : 'Sin fecha compromiso'};
         if (field === 'requesterName'){ const mail = requesters().get(val); if (mail && !t.requesterEmail) patch.requesterEmail = mail; }
         return {patch, log};
@@ -900,7 +947,7 @@ function syncDrawer(){
   const set = (sel, val) => { const el = $(sel); if (el && el !== document.activeElement) el.value = val ?? ''; };
   $('#d-folio').textContent = `${folio(t)} · ${STATUS[t.status]||''}`;
   set('#d-title', t.title); set('#d-status', t.status); set('#d-pri', PRI[t.priority] ? t.priority : 'media');
-  set('#d-due', t.deadline || ''); set('#d-req', t.requesterName); set('#d-mail', t.requesterEmail); set('#d-desc', t.description);
+  set('#d-due', t.deadline || ''); set('#d-stage', t.stage || ''); set('#d-req', t.requesterName); set('#d-mail', t.requesterEmail); set('#d-desc', t.description);
   const own = $('#d-owner');
   if (own !== document.activeElement){
     const ids = [...new Set([...S.team, t.ownerId].filter(Boolean))].sort((a,b) => pname(a).localeCompare(pname(b),'es'));
@@ -1060,7 +1107,13 @@ $('#r-go').addEventListener('click', () => {
     rows.push([folio(t), t.title, t.description||'', t.requesterName||'', t.requesterEmail||'', pname(t.ownerId), (PRI[t.priority]||PRI.media).l, STATUS[t.status]||'',
       isoSerial(t.createdAt), ymdSerial(t.deadline), isoSerial(t.completedAt), days, onTime, notes.length, last ? last.text : '']);
   });
-  const ws1 = makeSheet(rows, {8:DT, 9:D, 10:DT}, [9,40,40,22,28,22,10,20,16,14,16,10,10,12,48]);
+  const tasksR = [...r.done, ...r.open];
+  let dateCols = {8:DT, 9:D, 10:DT}, widths = [9,40,40,22,28,22,10,20,16,14,16,10,10,12,48];
+  if (S.useStages){
+    rows.forEach((row, i) => row.splice(8, 0, i === 0 ? 'Etapa' : (STAGE[tasksR[i-1].stage] ? STAGE[tasksR[i-1].stage].l : '')));
+    dateCols = {9:DT, 10:D, 11:DT}; widths.splice(8, 0, 20);
+  }
+  const ws1 = makeSheet(rows, dateCols, widths);
 
   const lrows = [['Fecha','Folio','Actividad','Solicitante','Tipo','Detalle','Registró']];
   r.log.forEach(({t,u}) => lrows.push([isoSerial(u.at), folio(t), t.title, t.requesterName||'', KIND[u.kind]||u.kind, u.kind === 'resp' ? (u.who ? `Ahora lo atiende ${pname(u.who)}` : 'Quedó sin responsable') : u.text, pname(u.by)]));
