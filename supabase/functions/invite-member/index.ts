@@ -68,17 +68,20 @@ Deno.serve(async (req) => {
   let status: "added" | "already" | "invited";
   if (existing) {
     const { data: already } = await admin.from("team_members").select("user_id").eq("user_id", existing.id).maybeSingle();
-    if (already) return json({ status: "already" });
-    const ins = await admin.from("team_members").insert({ user_id: existing.id, added_by: caller.id });
-    if (ins.error) return json({ error: "No se pudo agregar al equipo." }, 500);
-    status = "added";
+    if (already) {
+      status = "already"; // ya es del equipo: se le reenvía el correo con el acceso
+    } else {
+      const ins = await admin.from("team_members").insert({ user_id: existing.id, added_by: caller.id });
+      if (ins.error) return json({ error: "No se pudo agregar al equipo." }, 500);
+      status = "added";
+    }
   } else {
     const up = await admin.from("team_invites").upsert({ email, invited_by: caller.id, invited_at: new Date().toISOString(), accepted_at: null });
     if (up.error) return json({ error: "No se pudo guardar la invitación." }, 500);
     status = "invited";
   }
 
-  const mail = inviteEmail(inviter, email, status === "added");
+  const mail = inviteEmail(inviter, email, status !== "invited");
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },

@@ -932,7 +932,7 @@ async function sendInvite(email, btn){
       try { const j = await error.context.json(); if (j && j.error) msg = j.error; } catch {}
       toast(msg); return false;
     }
-    if (data.status === 'already') toast('Esa persona ya está en el equipo.');
+    if (data.status === 'already') toast(data.emailed ? 'Ya está en el equipo: le reenviamos el correo con el acceso' : 'Ya está en el equipo (el correo no salió)');
     else if (data.status === 'added') toast(data.emailed ? 'Ya tenía cuenta: quedó en el equipo y le avisamos por correo' : 'Ya tenía cuenta: quedó en el equipo (el correo de aviso no salió)');
     else toast(data.emailed ? 'Invitación enviada a ' + email : 'La invitación quedó guardada, pero el correo no salió. Usa Reenviar.');
     await loadAll();
