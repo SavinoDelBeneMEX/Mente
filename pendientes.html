@@ -190,7 +190,20 @@ input[type=date].inp{font-variant-numeric:tabular-nums}
 .stage-tab i{width:8px;height:8px;border-radius:50%;background:var(--sc,var(--faint))}
 .stage{display:inline-flex;align-items:center;gap:5px;font-weight:600;color:var(--sc,var(--muted))}
 .stage::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
-.quick.has-stage{grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) 145px 115px 160px 160px auto}
+.quick,.quick.has-stage{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.quick .f-add{align-self:end}
+.client{font-weight:600;color:var(--ink)}
+.stuck{color:var(--danger)!important}
+.files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.files li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:.5px solid var(--line)}
+.files li:first-child{border-top:0}
+.files .fi{width:32px;height:32px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:700;text-transform:uppercase}
+.files .fn{flex:1;min-width:0;display:flex;flex-direction:column}
+.files .fn b{font-weight:500;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.files .fn span{font-size:12.5px;color:var(--muted)}
+.upload{position:relative;overflow:hidden}
+.upload input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.stage-since{font-size:12.5px;color:var(--muted);margin-top:-6px;padding-left:2px}
 .empty{padding:44px 20px;text-align:center;color:var(--muted);background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow)}
 .empty strong{display:block;color:var(--ink);font-family:var(--f-display);font-size:19px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
 
@@ -358,6 +371,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
 
   <form class="quick" id="quick" autocomplete="off">
     <div class="field f-title"><label for="q-title">Nuevo pendiente</label><input class="inp" id="q-title" required placeholder="¿Qué hay que hacer?"></div>
+    <div class="field"><label for="q-client">Cliente / proveedor</label><input class="inp" id="q-client" list="clients" placeholder="Empresa"></div>
     <div class="field"><label for="q-req">Lo solicitó</label><input class="inp" id="q-req" list="reqs" placeholder="Nombre"></div>
     <div class="field"><label for="q-mail">Correo de quien solicita</label><input class="inp" id="q-mail" type="email" placeholder="nombre@empresa.com"></div>
     <div class="field"><label for="q-due">Fecha compromiso</label><input class="inp" id="q-due" type="date"></div>
@@ -368,6 +382,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
     <div class="field f-add"><button class="btn primary" type="submit" id="q-add">Agregar</button></div>
   </form>
   <datalist id="reqs"></datalist>
+  <datalist id="clients"></datalist>
 
   <div class="toolbar">
     <div class="seg" role="group" aria-label="Ver pendientes de">
@@ -379,6 +394,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
     <select class="inp" id="f-status" aria-label="Estado">
       <option value="open">Abiertos</option><option value="pendiente">Pendiente</option><option value="proceso">En proceso</option><option value="espera">En espera de respuesta</option><option value="hecho">Terminados</option><option value="all">Todos</option>
     </select>
+    <select class="inp" id="f-client" aria-label="Cliente o proveedor"><option value="">Todos los clientes y proveedores</option></select>
     <select class="inp" id="f-req" aria-label="Solicitante"><option value="">Todos los solicitantes</option></select>
   </div>
 
@@ -406,6 +422,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
   </div>
   <label class="check"><input type="checkbox" id="r-open"> Incluir también los pendientes que siguen abiertos</label>
   <label class="check"><input type="checkbox" id="r-mine"> Solo mis pendientes</label>
+  <div class="field"><label for="r-client">Cliente / proveedor</label><select class="inp" id="r-client"><option value="">Todos</option></select></div>
   <div class="summary" id="r-sum"></div>
   <div class="row-btns"><button class="btn primary" type="button" id="r-go">Descargar Excel</button><span class="hint" id="r-msg"></span></div>
 </div>
@@ -415,6 +432,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
   <div class="field"><label for="t-myname">Tu nombre (aparece en el historial y en la firma de los correos)</label>
     <div class="inline"><input class="inp" id="t-myname" placeholder="Nombre y apellido"><button class="btn" type="button" id="t-savename">Guardar</button></div></div>
   <label class="check"><input type="checkbox" id="t-digest"> Mandarme cada mañana a las 7:30 un correo con mis pendientes del día</label>
+  <label class="check"><input type="checkbox" id="t-weekly"> Mandarme los lunes a las 8:00 el resumen de mi equipo</label>
   <div class="section">
     <h3>Invitar por correo</h3>
     <div class="inline"><input class="inp" id="t-email" type="email" placeholder="correo@savinodelbene.com" aria-label="Correo de la persona a invitar"><button class="btn primary" type="button" id="t-add">Enviar invitación</button></div>
@@ -453,15 +471,21 @@ const nowIso = () => new Date().toISOString();
 
 const PRI = {urgente:{l:'Urgente',r:0}, alta:{l:'Alta',r:1}, media:{l:'Media',r:2}, baja:{l:'Baja',r:3}};
 const STATUS = {pendiente:'Pendiente', proceso:'En proceso', espera:'En espera de respuesta', hecho:'Terminado'};
-const KIND = {alta:'Alta', nota:'Seguimiento', estado:'Estado', correo:'Correo', resp:'Responsable', prioridad:'Prioridad', fecha:'Fecha', etapa:'Etapa'};
+const KIND = {archivo:'Archivo', alta:'Alta', nota:'Seguimiento', estado:'Estado', correo:'Correo', resp:'Responsable', prioridad:'Prioridad', fecha:'Fecha', etapa:'Etapa'};
 const STAGES = [['inicio','Por iniciar','#8e8e93'],['revision','Revisión','#007aff'],['firma','Firma','#af52de'],['cliente','Enviado al cliente','#ff9500'],['proveedor','Enviado a proveedor','#00a5a0']];
 const STAGE = Object.fromEntries(STAGES.map(([k,l,c]) => [k, {l, c}]));
-const COL = {title:'title', description:'description', requesterName:'requester_name', requesterEmail:'requester_email', deadline:'deadline', priority:'priority', status:'status', ownerId:'owner_id', completedAt:'completed_at', stage:'stage'};
+// Días en una misma etapa a partir de los cuales se marca como atorado (igual que en la función daily-digest)
+const STUCK_DAYS = {inicio:7, revision:3, firma:3, cliente:5, proveedor:5};
+const daysInStage = t => t.stage && t.stageChangedAt ? Math.max(0, -daysUntil(ymd(new Date(t.stageChangedAt)))) : 0;
+const isStuck = t => !!t.stage && t.status !== 'hecho' && daysInStage(t) >= (STUCK_DAYS[t.stage] ?? 99);
+const MAX_FILE = 25 * 1024 * 1024;
+const fmtSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+const COL = {title:'title', description:'description', requesterName:'requester_name', requesterEmail:'requester_email', deadline:'deadline', priority:'priority', status:'status', ownerId:'owner_id', completedAt:'completed_at', stage:'stage', client:'client'};
 const CHECK = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6.3l2.3 2.2 4.7-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 const S = {
   tasks: [], ready: false, uid: null, email: '', people: {}, team: [],
-  filter: {q:'', scope:'mine', status:'open', req:'', stage:'all'}, invites: [], useStages: false,
+  filter: {q:'', scope:'mine', status:'open', req:'', client:'', stage:'all'}, files: {}, invites: [], useStages: false,
   openId: null, mail: null, queue: {}, deleteArmed: false, channel: null
 };
 const byId = id => S.tasks.find(t => t.id === id);
@@ -483,20 +507,23 @@ function fail(err){ console.error(err); toast('No se pudo guardar. Revisa tu con
 function toTask(row, ups){
   return {
     id: row.id, title: row.title, description: row.description, requesterName: row.requester_name, requesterEmail: row.requester_email,
-    deadline: row.deadline, priority: row.priority, status: row.status, stage: row.stage || null, ownerId: row.owner_id, createdBy: row.created_by,
+    deadline: row.deadline, priority: row.priority, status: row.status, stage: row.stage || null, stageChangedAt: row.stage_changed_at, client: row.client || '', ownerId: row.owner_id, createdBy: row.created_by,
     createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at, updates: ups || []
   };
 }
 async function loadAll(){
-  const [items, ups, team, people, invites] = await Promise.all([
+  const [items, ups, team, people, files, invites] = await Promise.all([
     sb.from('work_items').select('*'),
     sb.from('work_updates').select('*').order('at'),
     sb.from('team_members').select('user_id'),
-    sb.from('profiles').select('id,email,full_name,daily_digest,stages_enabled'),
+    sb.from('profiles').select('id,email,full_name,daily_digest,stages_enabled,weekly_summary'),
+    sb.from('work_files').select('*').order('created_at'),
     sb.from('team_invites').select('email,invited_at').is('accepted_at', null).order('invited_at', {ascending: false})
   ]);
   const err = items.error || ups.error || team.error || people.error;
   S.invites = invites.error ? [] : invites.data;
+  S.files = {};
+  if (!files.error) files.data.forEach(x => (S.files[x.item_id] = S.files[x.item_id] || []).push(x));
   if (err){ notice('No se pudieron cargar los pendientes. Recarga la página.'); console.error(err); return; }
   const byItem = {};
   ups.data.forEach(u => (byItem[u.item_id] = byItem[u.item_id] || []).push(u));
@@ -504,7 +531,12 @@ async function loadAll(){
   S.team = team.data.map(r => r.user_id);
   S.people = Object.fromEntries(people.data.map(p => [p.id, p]));
   S.useStages = !!(S.people[S.uid] && S.people[S.uid].stages_enabled);
+  const firstLoad = !S.ready;
   S.ready = true; notice('');
+  if (firstLoad){
+    const p = new URLSearchParams(location.search).get('p');
+    if (p && byId(p)) setTimeout(() => openDrawer(p), 0);
+  }
   render();
 }
 let reloadT;
@@ -518,6 +550,11 @@ function requesters(){
     map.set(n, (t.requesterEmail||'').trim() || map.get(n) || '');
   });
   return map;
+}
+function clients(){
+  const set = new Map();
+  S.tasks.forEach(t => { const c = (t.client||'').trim(); if (c && !set.has(c.toLowerCase())) set.set(c.toLowerCase(), c); });
+  return [...set.values()].sort((a,b) => a.localeCompare(b,'es'));
 }
 function inScope(t){
   const f = S.filter;
@@ -533,8 +570,9 @@ function visible(ignoreStage){
     if (f.status === 'open' && t.status === 'hecho') return false;
     if (!['open','all'].includes(f.status) && t.status !== f.status) return false;
     if (f.req && (t.requesterName||'').trim() !== f.req) return false;
-    if (!ignoreStage && stageOn() && f.stage !== 'all' && (f.stage === 'none' ? !!t.stage : t.stage !== f.stage)) return false;
-    if (q && !`${t.title} ${t.description||''} ${t.requesterName||''}`.toLowerCase().includes(q)) return false;
+    if (f.client && (t.client||'').trim().toLowerCase() !== f.client.toLowerCase()) return false;
+    if (!ignoreStage && stageOn() && f.stage !== 'all' && (f.stage === 'stuck' ? !isStuck(t) : f.stage === 'none' ? !!t.stage : t.stage !== f.stage)) return false;
+    if (q && !`${t.title} ${t.description||''} ${t.requesterName||''} ${t.client||''}`.toLowerCase().includes(q)) return false;
     return true;
   });
 }
@@ -611,7 +649,14 @@ function rowHtml(t){
   const meta = [];
   if (t.requesterName) meta.push(`<span><span class="k">Solicitó</span> ${esc(t.requesterName)}</span>`);
   if (S.filter.scope !== 'team') meta.push(`<span><span class="k">Responsable</span> ${esc(pname(t.ownerId))}</span>`);
-  if (stageOn() && t.stage && STAGE[t.stage] && S.filter.stage === 'all') meta.unshift(`<span class="stage" style="--sc:${STAGE[t.stage].c}">${STAGE[t.stage].l}</span>`);
+  if (stageOn() && t.stage && STAGE[t.stage] && t.status !== 'hecho'){
+    const d = daysInStage(t), stuck = isStuck(t);
+    const label = (S.filter.stage === 'all' || S.filter.stage === 'stuck' ? STAGE[t.stage].l + ' · ' : '') + (stuck ? 'atorado ' : '') + d + ' d';
+    meta.unshift('<span class="stage' + (stuck ? ' stuck' : '') + '" style="--sc:' + STAGE[t.stage].c + '">' + label + '</span>');
+  }
+  if (t.client) meta.unshift('<span class="client">' + esc(t.client) + '</span>');
+  const nFiles = (S.files[t.id] || []).length;
+  if (nFiles) meta.push('<span>' + nFiles + ' archivo' + (nFiles > 1 ? 's' : '') + '</span>');
   if (nUp) meta.push(`<span>${nUp} seguimiento${nUp>1?'s':''}</span>`);
   return `<li class="row pri-${p}${t.status==='hecho'?' is-done':''}${S.justDone===t.id?' just':''}" data-id="${esc(t.id)}">
     <button class="tick" type="button" data-act="toggle" aria-label="${t.status==='hecho'?'Reabrir':'Marcar como terminado'}">${CHECK}</button>
@@ -684,8 +729,8 @@ function renderStageTabs(){
   }
   if (nav.hidden) return;
   const base = visible(true);
-  const count = k => base.filter(t => k === 'all' ? true : k === 'none' ? !t.stage : t.stage === k).length;
-  const tabs = [['all','Todas',null], ...STAGES, ['none','Sin etapa',null]].filter(([k]) => k !== 'none' || count('none') || S.filter.stage === 'none');
+  const count = k => base.filter(t => k === 'all' ? true : k === 'stuck' ? isStuck(t) : k === 'none' ? !t.stage : t.stage === k).length;
+  const tabs = [['all','Todas',null], ['stuck','Atorados','#ff3b30'], ...STAGES, ['none','Sin etapa',null]].filter(([k]) => (k !== 'none' && k !== 'stuck') || count(k) || S.filter.stage === k);
   nav.innerHTML = tabs.map(([k,l,c]) => '<button type="button" class="stage-tab" data-stage="' + k + '" aria-pressed="' + (S.filter.stage === k) + '">' + (c ? '<i style="--sc:' + c + '"></i>' : '') + l + ' <b>' + count(k) + '</b></button>').join('');
 }
 function renderFilters(){
@@ -695,6 +740,14 @@ function renderFilters(){
   qo.value = ids.includes(keep) ? keep : S.uid;
   const reqs = requesters();
   $('#reqs').innerHTML = [...reqs.keys()].map(n => `<option value="${esc(n)}"></option>`).join('');
+  const cl = clients();
+  $('#clients').innerHTML = cl.map(c => '<option value="' + esc(c) + '"></option>').join('');
+  const fc = $('#f-client');
+  fc.innerHTML = '<option value="">Todos los clientes y proveedores</option>' + cl.map(c => '<option value="' + esc(c) + '"' + (c.toLowerCase() === S.filter.client.toLowerCase() ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
+  fc.hidden = !cl.length;
+  const rc = $('#r-client'), rk = rc.value;
+  rc.innerHTML = '<option value="">Todos</option>' + cl.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
+  rc.value = rk;
   const sel = $('#f-req'), cur = S.filter.req;
   sel.innerHTML = `<option value="">Todos los solicitantes</option>` + [...reqs.keys()].sort((a,b)=>a.localeCompare(b,'es')).map(n => `<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
   document.querySelectorAll('.seg [data-scope]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.scope === S.filter.scope)));
@@ -721,14 +774,15 @@ $('#quick').addEventListener('submit', async e => {
       title, requester_name: $('#q-req').value.trim(), requester_email: $('#q-mail').value.trim(),
       deadline: $('#q-due').value || null, priority: $('#q-pri').value, status: 'pendiente',
       stage: S.useStages ? ($('#q-stage').value || null) : null,
+      client: $('#q-client').value.trim(),
       owner_id: $('#q-owner').value || S.uid, created_by: S.uid
     }).select().single();
     if (ins.error) return fail(ins.error);
     const up = await sb.from('work_updates').insert({item_id: ins.data.id, by: S.uid, kind: 'alta', text: 'Pendiente registrado'}).select().single();
     S.tasks.push(toTask(ins.data, up.data ? [up.data] : []));
     render();
-    ['#q-title','#q-req','#q-mail','#q-due'].forEach(s => $(s).value = ''); $('#q-pri').value = 'media';
-    $('#q-title').focus(); toast(ins.data.owner_id && ins.data.owner_id !== S.uid ? 'Asignado a ' + pname(ins.data.owner_id) : 'Pendiente agregado');
+    ['#q-title','#q-req','#q-mail','#q-due','#q-client'].forEach(s => $(s).value = ''); $('#q-pri').value = 'media';
+    $('#q-title').focus(); toast(ins.data.owner_id && ins.data.owner_id !== S.uid ? 'Asignado a ' + pname(ins.data.owner_id) + '; le avisamos por correo' : 'Pendiente agregado');
   } finally { $('#q-add').disabled = false; }
 });
 
@@ -741,6 +795,7 @@ $('#stage-tabs').addEventListener('click', e => {
   render();
   b.scrollIntoView({block:'nearest', inline:'nearest', behavior:'smooth'});
 });
+$('#f-client').addEventListener('change', e => { S.filter.client = e.target.value; render(); });
 $('#f-q').addEventListener('input', e => { S.filter.q = e.target.value; renderList(); });
 $('#f-status').addEventListener('change', e => { S.filter.status = e.target.value; renderList(); });
 $('#f-req').addEventListener('change', e => { S.filter.req = e.target.value; renderList(); });
@@ -827,10 +882,19 @@ function buildDrawer(){
       <div class="field"><label for="d-due">Fecha compromiso</label><input class="inp" type="date" id="d-due" data-field="deadline"></div>
       <div class="field"${S.useStages ? '' : ' hidden'}><label for="d-stage">Etapa</label><select class="inp" id="d-stage" data-field="stage"><option value="">Sin etapa</option>${STAGES.map(([k,l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
       <div class="field"><label for="d-owner">Responsable</label><select class="inp" id="d-owner"></select></div>
+      <div class="field"><label for="d-client">Cliente / proveedor</label><input class="inp" id="d-client" list="clients" data-field="client"></div>
       <div class="field"><label for="d-req">Lo solicitó</label><input class="inp" id="d-req" list="reqs" data-field="requesterName"></div>
       <div class="field"><label for="d-mail">Correo de quien solicita</label><input class="inp" type="email" id="d-mail" data-field="requesterEmail"></div>
     </div>
     <div class="field"><label for="d-desc">Descripción</label><textarea class="inp" id="d-desc" data-field="description" placeholder="Detalles, referencias, número de embarque…"></textarea></div>
+
+    <div class="stage-since" id="d-since" hidden></div>
+
+    <div class="section">
+      <h3>Archivos <small id="d-fcount"></small></h3>
+      <ul class="files" id="d-files"></ul>
+      <div class="row-btns"><label class="btn upload">Adjuntar archivos<input type="file" id="d-upload" multiple></label><span class="hint">Hasta 25 MB cada uno. Solo los ve tu equipo.</span></div>
+    </div>
 
     <div class="section">
       <h3>Seguimiento <small id="d-count"></small></h3>
@@ -912,7 +976,44 @@ function wireDrawer(){
   });
   $('#d-owner').addEventListener('change', e => {
     const uid = e.target.value || null;
-    patchTask(S.openId, t => t.ownerId === uid ? null : {patch:{ownerId: uid}, log:{kind:'resp', who: uid, text:'Cambió responsable'}});
+    patchTask(S.openId, t => t.ownerId === uid ? null : {patch:{ownerId: uid}, log:{kind:'resp', who: uid, text:'Cambió responsable'}})
+      .then(() => { if (uid && uid !== S.uid) toast('Le avisamos por correo a ' + pname(uid)); });
+  });
+  $('#d-upload').addEventListener('change', async e => {
+    const id = S.openId, picked = [...e.target.files]; e.target.value = '';
+    for (const file of picked){
+      if (file.size > MAX_FILE){ toast(file.name + ' pesa más de 25 MB'); continue; }
+      const safe = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\-]+/g, '_').slice(-120);
+      const path = id + '/' + crypto.randomUUID() + '-' + safe;
+      toast('Subiendo ' + file.name + '…');
+      const up = await sb.storage.from('work-files').upload(path, file, {contentType: file.type || 'application/octet-stream'});
+      if (up.error){ fail(up.error); continue; }
+      const ins = await sb.from('work_files').insert({item_id: id, path, name: file.name, size: file.size, uploaded_by: S.uid}).select().single();
+      if (ins.error){ await sb.storage.from('work-files').remove([path]); fail(ins.error); continue; }
+      (S.files[id] = S.files[id] || []).push(ins.data);
+      await patchTask(id, () => ({log: {kind: 'archivo', text: 'Adjuntó ' + file.name}}));
+      toast('Archivo adjuntado');
+    }
+  });
+  $('#d-files').addEventListener('click', async e => {
+    const dl = e.target.closest('[data-dl]'), del = e.target.closest('[data-fdel]');
+    const list = S.files[S.openId] || [];
+    if (dl){
+      const x = list.find(y => y.id === dl.dataset.dl); if (!x) return;
+      const r = await sb.storage.from('work-files').createSignedUrl(x.path, 120, {download: x.name});
+      if (r.error) return fail(r.error);
+      const a = document.createElement('a'); a.href = r.data.signedUrl; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
+      return;
+    }
+    if (!del) return;
+    if (del.dataset.armed !== '1'){ del.dataset.armed = '1'; del.textContent = '¿Quitar? Confirmar'; del.classList.add('danger'); return; }
+    const x = list.find(y => y.id === del.dataset.fdel); if (!x) return;
+    const r1 = await sb.from('work_files').delete().eq('id', x.id);
+    if (r1.error) return fail(r1.error);
+    await sb.storage.from('work-files').remove([x.path]);
+    S.files[S.openId] = list.filter(y => y.id !== x.id);
+    await patchTask(S.openId, () => ({log: {kind: 'archivo', text: 'Quitó ' + x.name}}));
+    toast('Archivo quitado');
   });
   $('#d-addnote').addEventListener('click', () => {
     const txt = $('#d-note').value.trim(); if (!txt) return;
@@ -941,13 +1042,25 @@ function wireDrawer(){
   });
 }
 
+function renderFiles(t){
+  const list = S.files[t.id] || [];
+  $('#d-fcount').textContent = list.length ? list.length + ' archivo' + (list.length > 1 ? 's' : '') : '';
+  $('#d-files').innerHTML = list.length ? list.map(x => {
+    const ext = (x.name.split('.').pop() || '').slice(0, 4);
+    return '<li><span class="fi">' + esc(ext) + '</span><span class="fn"><b>' + esc(x.name) + '</b><span>' + esc(fmtSize(x.size || 0)) + ' · ' + esc(pname(x.uploaded_by)) + ' · ' + esc(fmtDT(x.created_at)) + '</span></span><button class="btn ghost" type="button" data-dl="' + esc(x.id) + '">Descargar</button><button class="btn ghost" type="button" data-fdel="' + esc(x.id) + '">Quitar</button></li>';
+  }).join('') : '<li class="hint">Sin archivos todavía.</li>';
+}
 function syncDrawer(){
   const t = byId(S.openId);
   if (!t){ closeAll(); return; }
+  renderFiles(t);
+  const since = $('#d-since');
+  since.hidden = !(S.useStages && t.stage && t.stageChangedAt && t.status !== 'hecho');
+  if (!since.hidden){ const d = daysInStage(t); since.textContent = (isStuck(t) ? 'Atorado: ' : '') + 'en ' + STAGE[t.stage].l + (d ? ' desde hace ' + d + ' día' + (d > 1 ? 's' : '') : ' desde hoy'); since.classList.toggle('stuck', isStuck(t)); }
   const set = (sel, val) => { const el = $(sel); if (el && el !== document.activeElement) el.value = val ?? ''; };
   $('#d-folio').textContent = `${folio(t)} · ${STATUS[t.status]||''}`;
   set('#d-title', t.title); set('#d-status', t.status); set('#d-pri', PRI[t.priority] ? t.priority : 'media');
-  set('#d-due', t.deadline || ''); set('#d-stage', t.stage || ''); set('#d-req', t.requesterName); set('#d-mail', t.requesterEmail); set('#d-desc', t.description);
+  set('#d-due', t.deadline || ''); set('#d-stage', t.stage || ''); set('#d-req', t.requesterName); set('#d-client', t.client); set('#d-mail', t.requesterEmail); set('#d-desc', t.description);
   const own = $('#d-owner');
   if (own !== document.activeElement){
     const ids = [...new Set([...S.team, t.ownerId].filter(Boolean))].sort((a,b) => pname(a).localeCompare(pname(b),'es'));
@@ -998,6 +1111,7 @@ function renderTeam(){
 $('#open-team').addEventListener('click', () => {
   $('#t-myname').value = myName();
   $('#t-digest').checked = !S.people[S.uid] || S.people[S.uid].daily_digest !== false;
+  $('#t-weekly').checked = !!(S.people[S.uid] && S.people[S.uid].weekly_summary);
   renderTeam(); present($('#scrim')); present($('#team'));
 });
 $('#t-savename').addEventListener('click', async () => {
@@ -1013,6 +1127,13 @@ $('#t-digest').addEventListener('change', async e => {
   if (r.error){ e.target.checked = !on; return fail(r.error); }
   if (S.people[S.uid]) S.people[S.uid].daily_digest = on;
   toast(on ? 'Te llegará el resumen cada mañana' : 'Resumen diario apagado');
+});
+$('#t-weekly').addEventListener('change', async e => {
+  const on = e.target.checked;
+  const r = await sb.from('profiles').update({weekly_summary: on}).eq('id', S.uid);
+  if (r.error){ e.target.checked = !on; return fail(r.error); }
+  if (S.people[S.uid]) S.people[S.uid].weekly_summary = on;
+  toast(on ? 'Te llegará el resumen del equipo cada lunes' : 'Resumen semanal apagado');
 });
 $('#t-add').addEventListener('click', async e => {
   const email = $('#t-email').value.trim().toLowerCase();
@@ -1053,7 +1174,8 @@ function reportSet(){
   const from = $('#r-from').value, to = $('#r-to').value;
   const incOpen = $('#r-open').checked, mine = $('#r-mine').checked;
   const inRange = iso => { if (!iso) return false; const d = ymd(new Date(iso)); return d >= from && d <= to; };
-  const base = S.tasks.filter(t => !mine || t.ownerId === S.uid);
+  const cf = $('#r-client').value.toLowerCase();
+  const base = S.tasks.filter(t => (!mine || t.ownerId === S.uid) && (!cf || (t.client||'').trim().toLowerCase() === cf));
   const done = base.filter(t => t.status === 'hecho' && inRange(t.completedAt)).sort((a,b) => (a.completedAt||'').localeCompare(b.completedAt||''));
   const open = incOpen ? base.filter(t => t.status !== 'hecho' && (!t.createdAt || ymd(new Date(t.createdAt)) <= to)).sort(sortOpen) : [];
   const log = [];
@@ -1074,7 +1196,7 @@ $('#open-report').addEventListener('click', () => {
   present($('#scrim')); present($('#report')); updateReportSummary();
 });
 $('#presets').addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (b) setPreset(b.dataset.preset); });
-['#r-from','#r-to','#r-open','#r-mine'].forEach(s => $(s).addEventListener('change', updateReportSummary));
+['#r-from','#r-to','#r-open','#r-mine','#r-client'].forEach(s => $(s).addEventListener('change', updateReportSummary));
 
 const serial = (y,mo,d,h=0,mi=0) => (Date.UTC(y,mo-1,d,h,mi) - Date.UTC(1899,11,30)) / 86400000;
 const ymdSerial = s => { if (!s) return null; const [y,m,d] = s.split('-').map(Number); return serial(y,m,d); };
@@ -1095,7 +1217,7 @@ $('#r-go').addEventListener('click', () => {
   if (typeof XLSX === 'undefined'){ msg.textContent = 'No se pudo cargar el generador de Excel. Recarga la página.'; return; }
   const r = reportSet();
   const D = 'dd/mm/yyyy', DT = 'dd/mm/yyyy hh:mm';
-  const head = ['Folio','Actividad','Descripción','Solicitante','Correo solicitante','Responsable','Prioridad','Estado','Fecha de alta','Fecha compromiso','Fecha de término','Días para resolver','¿A tiempo?','Seguimientos','Último seguimiento'];
+  const head = ['Folio','Actividad','Descripción','Cliente / proveedor','Solicitante','Correo solicitante','Responsable','Prioridad','Estado','Fecha de alta','Fecha compromiso','Fecha de término','Días para resolver','¿A tiempo?','Seguimientos','Último seguimiento'];
   const rows = [head];
   [...r.done, ...r.open].forEach(t => {
     const ups = t.updates || [];
@@ -1104,20 +1226,20 @@ $('#r-go').addEventListener('click', () => {
     const cDay = isoDay(t.completedAt), aDay = isoDay(t.createdAt);
     const days = cDay && aDay ? Math.round((parseYmd(cDay) - parseYmd(aDay)) / 86400000) : null;
     const onTime = t.status !== 'hecho' ? (t.deadline && daysUntil(t.deadline) < 0 ? 'Vencido' : 'En curso') : (!t.deadline ? 'Sin fecha' : (cDay <= t.deadline ? 'Sí' : 'No'));
-    rows.push([folio(t), t.title, t.description||'', t.requesterName||'', t.requesterEmail||'', pname(t.ownerId), (PRI[t.priority]||PRI.media).l, STATUS[t.status]||'',
+    rows.push([folio(t), t.title, t.description||'', t.client||'', t.requesterName||'', t.requesterEmail||'', pname(t.ownerId), (PRI[t.priority]||PRI.media).l, STATUS[t.status]||'',
       isoSerial(t.createdAt), ymdSerial(t.deadline), isoSerial(t.completedAt), days, onTime, notes.length, last ? last.text : '']);
   });
   const tasksR = [...r.done, ...r.open];
-  let dateCols = {8:DT, 9:D, 10:DT}, widths = [9,40,40,22,28,22,10,20,16,14,16,10,10,12,48];
+  let dateCols = {9:DT, 10:D, 11:DT}, widths = [9,40,40,26,22,28,22,10,20,16,14,16,10,10,12,48];
   if (S.useStages){
-    rows.forEach((row, i) => row.splice(8, 0, i === 0 ? 'Etapa' : (STAGE[tasksR[i-1].stage] ? STAGE[tasksR[i-1].stage].l : '')));
-    dateCols = {9:DT, 10:D, 11:DT}; widths.splice(8, 0, 20);
+    rows.forEach((row, i) => row.splice(9, 0, i === 0 ? 'Etapa' : (STAGE[tasksR[i-1].stage] ? STAGE[tasksR[i-1].stage].l : '')));
+    dateCols = {10:DT, 11:D, 12:DT}; widths.splice(9, 0, 20);
   }
   const ws1 = makeSheet(rows, dateCols, widths);
 
-  const lrows = [['Fecha','Folio','Actividad','Solicitante','Tipo','Detalle','Registró']];
-  r.log.forEach(({t,u}) => lrows.push([isoSerial(u.at), folio(t), t.title, t.requesterName||'', KIND[u.kind]||u.kind, u.kind === 'resp' ? (u.who ? `Ahora lo atiende ${pname(u.who)}` : 'Quedó sin responsable') : u.text, pname(u.by)]));
-  const ws2 = makeSheet(lrows, {0:DT}, [16,9,40,22,14,60,22]);
+  const lrows = [['Fecha','Folio','Actividad','Cliente / proveedor','Solicitante','Tipo','Detalle','Registró']];
+  r.log.forEach(({t,u}) => lrows.push([isoSerial(u.at), folio(t), t.title, t.client||'', t.requesterName||'', KIND[u.kind]||u.kind, u.kind === 'resp' ? (u.who ? `Ahora lo atiende ${pname(u.who)}` : 'Quedó sin responsable') : u.text, pname(u.by)]));
+  const ws2 = makeSheet(lrows, {0:DT}, [16,9,40,26,22,14,60,22]);
 
   const per = new Map();
   [...r.done, ...r.open].forEach(t => {
@@ -1178,6 +1300,7 @@ async function start(user){
   S.channel = sb.channel('pendientes')
     .on('postgres_changes', {event:'*', schema:'public', table:'work_items'}, scheduleReload)
     .on('postgres_changes', {event:'*', schema:'public', table:'work_updates'}, scheduleReload)
+    .on('postgres_changes', {event:'*', schema:'public', table:'work_files'}, scheduleReload)
     .subscribe();
 }
 function stop(){
