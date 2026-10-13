@@ -467,7 +467,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
 <div class="toast" id="toast" hidden role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script>
 (function(){
 const cfg = window.MENTE_CONFIG;
@@ -1296,72 +1296,163 @@ $('#open-report').addEventListener('click', () => {
 $('#presets').addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (b) setPreset(b.dataset.preset); });
 ['#r-from','#r-to','#r-open','#r-mine','#r-client'].forEach(s => $(s).addEventListener('change', updateReportSummary));
 
-const serial = (y,mo,d,h=0,mi=0) => (Date.UTC(y,mo-1,d,h,mi) - Date.UTC(1899,11,30)) / 86400000;
-const ymdSerial = s => { if (!s) return null; const [y,m,d] = s.split('-').map(Number); return serial(y,m,d); };
-const isoSerial = iso => { if (!iso) return null; const d = new Date(iso); return serial(d.getFullYear(), d.getMonth()+1, d.getDate(), d.getHours(), d.getMinutes()); };
+/* ---------- Excel con el formato aprobado (ExcelJS) ----------
+   Encabezado azul marino con texto blanco, renglones alternados en gris, colores por
+   prioridad / estado / ¿a tiempo?, encabezado fijo, filtros y hoja Resumen con título. */
 const isoDay = iso => iso ? ymd(new Date(iso)) : null;
-function makeSheet(rows, dateCols, widths){
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  for (let r = 1; r < rows.length; r++) Object.entries(dateCols).forEach(([c,fmt]) => {
-    const v = rows[r][c]; if (v == null || v === '') return;
-    ws[XLSX.utils.encode_cell({r, c:+c})] = {t:'n', v, z:fmt};
+// ExcelJS guarda las fechas en UTC: se arman con los componentes locales para que se vean igual que en la app
+const xlDate = (y, mo, d, h = 0, mi = 0) => new Date(Date.UTC(y, mo - 1, d, h, mi));
+const xlYmd = s => { if (!s) return null; const [y,m,d] = s.split('-').map(Number); return xlDate(y, m, d); };
+const xlIso = iso => { if (!iso) return null; const d = new Date(iso); return xlDate(d.getFullYear(), d.getMonth()+1, d.getDate(), d.getHours(), d.getMinutes()); };
+const XL = {
+  navy: 'FF1F3864', zebra: 'FFF2F2F2', total: 'FFD9E1F2', label: 'FF595959', line: 'FFBFBFBF',
+  D: 'dd/mm/yyyy', DT: 'dd/mm/yyyy hh:mm', N: '#,##0;-#,##0;"-"',
+  // [relleno, texto] por valor, igual que el formato condicional del archivo de referencia
+  tone: {
+    Urgente: ['FFFFC7CE','FF9C0006'], Alta: ['FFFFEB9C','FF9C5700'], Media: ['FFDDEBF7','FF1F4E78'], Baja: ['FFE2EFDA','FF375623'],
+    Terminado: ['FFC6EFCE','FF006100'], 'En proceso': ['FFFFEB9C','FF9C5700'], Pendiente: ['FFFFEB9C','FF9C5700'], 'En espera de respuesta': ['FFFFEB9C','FF9C5700'],
+    'Sí': ['FFC6EFCE','FF006100'], No: ['FFFFC7CE','FF9C0006'], Vencido: ['FFFFC7CE','FF9C0006']
+  }
+};
+const xlBorder = () => { const b = {style: 'thin', color: {argb: XL.line}}; return {top: b, left: b, bottom: b, right: b}; };
+const xlFill = argb => ({type: 'pattern', pattern: 'solid', fgColor: {argb}});
+
+/* cols: [{h: encabezado, w: ancho, fmt?, center?, bold?, tone?}]; rows: arreglos de valores */
+function xlTable(wb, name, cols, rows, headHeight){
+  const ws = wb.addWorksheet(name, {views: [{state: 'frozen', ySplit: 1, showGridLines: false}]});
+  ws.columns = cols.map(c => ({width: c.w}));
+  const head = ws.addRow(cols.map(c => c.h));
+  head.height = headHeight;
+  head.eachCell(cell => {
+    cell.font = {name: 'Calibri', size: 11, bold: true, color: {argb: 'FFFFFFFF'}};
+    cell.fill = xlFill(XL.navy);
+    cell.alignment = {horizontal: 'center', vertical: 'middle', wrapText: true};
+    cell.border = xlBorder();
   });
-  ws['!cols'] = widths.map(w => ({wch:w}));
-  if (rows.length > 1) ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:rows.length-1, c:rows[0].length-1}})};
+  rows.forEach((vals, i) => {
+    const row = ws.addRow(vals);
+    cols.forEach((c, j) => {
+      const cell = row.getCell(j + 1);
+      cell.font = {name: 'Calibri', size: 10, bold: !!c.bold};
+      cell.alignment = {horizontal: c.center ? 'center' : undefined, vertical: 'top', wrapText: true};
+      cell.border = xlBorder();
+      if (c.fmt) cell.numFmt = c.fmt;
+      if (i % 2 === 1) cell.fill = xlFill(XL.zebra);
+      const t = c.tone && XL.tone[vals[j]];
+      if (t){ cell.fill = xlFill(t[0]); cell.font = {name: 'Calibri', size: 10, color: {argb: t[1]}}; }
+    });
+  });
+  ws.autoFilter = {from: {row: 1, column: 1}, to: {row: Math.max(1, rows.length + 1), column: cols.length}};
   return ws;
 }
-$('#r-go').addEventListener('click', () => {
+
+$('#r-go').addEventListener('click', async () => {
   const msg = $('#r-msg');
-  if (typeof XLSX === 'undefined'){ msg.textContent = 'No se pudo cargar el generador de Excel. Recarga la página.'; return; }
+  if (typeof ExcelJS === 'undefined'){ msg.textContent = 'No se pudo cargar el generador de Excel. Recarga la página.'; return; }
   const r = reportSet();
-  const D = 'dd/mm/yyyy', DT = 'dd/mm/yyyy hh:mm';
-  const head = ['Folio','Actividad','Descripción','Cliente / proveedor','Solicitante','Correo solicitante','Responsable','Prioridad','Estado','Fecha de alta','Fecha compromiso','Fecha de término','Días para resolver','¿A tiempo?','Seguimientos','Último seguimiento'];
-  const rows = [head];
-  [...r.done, ...r.open].forEach(t => {
-    const ups = t.updates || [];
-    const notes = ups.filter(u => u.kind === 'nota' || u.kind === 'correo');
+  const tasksR = [...r.done, ...r.open];
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Backbrain';
+
+  // Hoja 1: Actividades
+  const cols = [
+    {h:'Folio', w:10, center:true, bold:true}, {h:'Actividad', w:33.3}, {h:'Descripción', w:26.7}, {h:'Cliente / proveedor', w:18.3},
+    {h:'Solicitante', w:15.8}, {h:'Correo solicitante', w:28.3}, {h:'Responsable', w:17.5}, {h:'Prioridad', w:10.8, center:true, tone:true},
+    {h:'Estado', w:12.5, center:true, tone:true},
+    ...(S.useStages ? [{h:'Etapa', w:14, center:true}] : []),
+    {h:'Fecha de alta', w:15.8, center:true, fmt:XL.DT}, {h:'Fecha compromiso', w:13.3, center:true, fmt:XL.D}, {h:'Fecha de término', w:15.8, center:true, fmt:XL.DT},
+    {h:'Días para resolver', w:10, center:true}, {h:'¿A tiempo?', w:9.2, center:true, tone:true}, {h:'Seguimientos', w:11.7, center:true}, {h:'Último seguimiento', w:33.3}
+  ];
+  const rows = tasksR.map(t => {
+    const notes = (t.updates || []).filter(u => u.kind === 'nota' || u.kind === 'correo');
     const last = notes[notes.length-1];
     const cDay = isoDay(t.completedAt), aDay = isoDay(t.createdAt);
     const days = cDay && aDay ? Math.round((parseYmd(cDay) - parseYmd(aDay)) / 86400000) : null;
     const onTime = t.status !== 'hecho' ? (t.deadline && daysUntil(t.deadline) < 0 ? 'Vencido' : 'En curso') : (!t.deadline ? 'Sin fecha' : (cDay <= t.deadline ? 'Sí' : 'No'));
-    rows.push([folio(t), t.title, t.description||'', t.client||'', t.requesterName||'', t.requesterEmail||'', pname(t.ownerId), (PRI[t.priority]||PRI.media).l, STATUS[t.status]||'',
-      isoSerial(t.createdAt), ymdSerial(t.deadline), isoSerial(t.completedAt), days, onTime, notes.length, last ? last.text : '']);
+    return [folio(t), t.title, t.description||'', t.client||'', t.requesterName||'', t.requesterEmail||'', pname(t.ownerId), (PRI[t.priority]||PRI.media).l, STATUS[t.status]||'',
+      ...(S.useStages ? [STAGE[t.stage] ? STAGE[t.stage].l : ''] : []),
+      xlIso(t.createdAt), xlYmd(t.deadline), xlIso(t.completedAt), days, onTime, notes.length, last ? last.text : ''];
   });
-  const tasksR = [...r.done, ...r.open];
-  let dateCols = {9:DT, 10:D, 11:DT}, widths = [9,40,40,26,22,28,22,10,20,16,14,16,10,10,12,48];
-  if (S.useStages){
-    rows.forEach((row, i) => row.splice(9, 0, i === 0 ? 'Etapa' : (STAGE[tasksR[i-1].stage] ? STAGE[tasksR[i-1].stage].l : '')));
-    dateCols = {10:DT, 11:D, 12:DT}; widths.splice(9, 0, 20);
-  }
-  const ws1 = makeSheet(rows, dateCols, widths);
+  xlTable(wb, 'Actividades', cols, rows, 40);
 
-  const lrows = [['Fecha','Folio','Actividad','Cliente / proveedor','Solicitante','Tipo','Detalle','Registró']];
-  r.log.forEach(({t,u}) => lrows.push([isoSerial(u.at), folio(t), t.title, t.client||'', t.requesterName||'', KIND[u.kind]||u.kind, u.kind === 'resp' ? (u.who ? `Ahora lo atiende ${pname(u.who)}` : 'Quedó sin responsable') : u.text, pname(u.by)]));
-  const ws2 = makeSheet(lrows, {0:DT}, [16,9,40,26,22,14,60,22]);
+  // Hoja 2: Bitácora
+  const lcols = [
+    {h:'Fecha', w:16.7, fmt:XL.DT}, {h:'Folio', w:10, center:true, bold:true}, {h:'Actividad', w:36.7}, {h:'Cliente / proveedor', w:18.3},
+    {h:'Solicitante', w:15.8}, {h:'Tipo', w:14.2, center:true}, {h:'Detalle', w:38.3}, {h:'Registró', w:18.3}
+  ];
+  const lrows = r.log.map(({t,u}) => [xlIso(u.at), folio(t), t.title, t.client||'', t.requesterName||'', KIND[u.kind]||u.kind,
+    u.kind === 'resp' ? (u.who ? `Ahora lo atiende ${pname(u.who)}` : 'Quedó sin responsable') : u.text, pname(u.by)]);
+  xlTable(wb, 'Bitácora', lcols, lrows, 32);
 
+  // Hoja 3: Resumen
   const per = new Map();
-  [...r.done, ...r.open].forEach(t => {
+  tasksR.forEach(t => {
     const k = (t.requesterName||'').trim() || '(Sin solicitante)';
     const o = per.get(k) || {done:0, ontime:0, late:0, open:0};
     if (t.status === 'hecho'){ o.done++; if (t.deadline){ isoDay(t.completedAt) <= t.deadline ? o.ontime++ : o.late++; } } else o.open++;
     per.set(k, o);
   });
-  const srows = [
-    ['Reporte de actividades'], ['Periodo', `${fmtDate(r.from)} ${r.from.slice(0,4)} – ${fmtDate(r.to)} ${r.to.slice(0,4)}`],
-    ['Alcance', r.mine ? `Solo pendientes de ${pname(S.uid)}` : 'Todo el equipo'], ['Generado', fmtDT(nowIso())], [],
-    ['Solicitante','Terminadas','A tiempo','Con retraso','Abiertas']
-  ];
-  [...per.entries()].sort((a,b) => b[1].done - a[1].done).forEach(([k,o]) => srows.push([k, o.done, o.ontime, o.late, o.open]));
+  const ws = wb.addWorksheet('Resumen', {views: [{showGridLines: false}]});
+  ws.columns = [{width: 21.7}, {width: 15}, {width: 15}, {width: 15}, {width: 15}];
+  ws.mergeCells('A1:E1');
+  const title = ws.getCell('A1');
+  title.value = 'Reporte de actividades';
+  title.font = {name: 'Calibri', size: 16, bold: true, color: {argb: XL.navy}};
+  title.border = {bottom: {style: 'medium', color: {argb: XL.navy}}};
+  ws.getRow(1).height = 28;
+  [['Periodo', `${fmtDate(r.from)} ${r.from.slice(0,4)} – ${fmtDate(r.to)} ${r.to.slice(0,4)}`],
+   ['Alcance', r.mine ? `Solo pendientes de ${pname(S.uid)}` : 'Todo el equipo'],
+   ['Generado', fmtDT(nowIso())]].forEach(([k, v], i) => {
+    const n = i + 2;
+    ws.mergeCells(`B${n}:E${n}`);
+    ws.getCell(`A${n}`).value = k;
+    ws.getCell(`A${n}`).font = {name: 'Calibri', size: 11, bold: true, color: {argb: XL.label}};
+    ws.getCell(`B${n}`).value = v;
+    ws.getCell(`B${n}`).font = {name: 'Calibri', size: 11};
+    ws.getCell(`B${n}`).alignment = {horizontal: 'left'};
+  });
+  const sh = ws.getRow(6);
+  sh.values = ['Solicitante','Terminadas','A tiempo','Con retraso','Abiertas'];
+  sh.height = 24;
+  sh.eachCell(cell => {
+    cell.font = {name: 'Calibri', size: 11, bold: true, color: {argb: 'FFFFFFFF'}};
+    cell.fill = xlFill(XL.navy);
+    cell.alignment = {horizontal: 'center', vertical: 'middle'};
+    cell.border = xlBorder();
+  });
+  let n = 7;
+  [...per.entries()].sort((a,b) => b[1].done - a[1].done).forEach(([k,o], i) => {
+    const row = ws.getRow(n++);
+    row.values = [k, o.done, o.ontime, o.late, o.open];
+    row.eachCell({includeEmpty: true}, (cell, c) => {
+      cell.font = {name: 'Calibri', size: 11};
+      cell.border = xlBorder();
+      if (c > 1){ cell.numFmt = XL.N; cell.alignment = {horizontal: 'center'}; }
+      if (i % 2 === 1) cell.fill = xlFill(XL.zebra);
+    });
+  });
   const tot = [...per.values()].reduce((a,o) => ({done:a.done+o.done, ontime:a.ontime+o.ontime, late:a.late+o.late, open:a.open+o.open}), {done:0,ontime:0,late:0,open:0});
-  srows.push(['Total', tot.done, tot.ontime, tot.late, tot.open]);
-  const ws3 = XLSX.utils.aoa_to_sheet(srows); ws3['!cols'] = [{wch:28},{wch:14},{wch:12},{wch:13},{wch:12}];
+  const tr = ws.getRow(n);
+  tr.values = ['Total', tot.done, tot.ontime, tot.late, tot.open];
+  tr.eachCell({includeEmpty: true}, (cell, c) => {
+    cell.font = {name: 'Calibri', size: 11, bold: true};
+    cell.fill = xlFill(XL.total);
+    cell.border = {...xlBorder(), top: {style: 'medium', color: {argb: XL.navy}}};
+    if (c > 1){ cell.numFmt = XL.N; cell.alignment = {horizontal: 'center'}; }
+  });
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws1, 'Actividades');
-  XLSX.utils.book_append_sheet(wb, ws2, 'Bitácora');
-  XLSX.utils.book_append_sheet(wb, ws3, 'Resumen');
-  XLSX.writeFile(wb, `Actividades_${r.from}_a_${r.to}.xlsx`);
-  msg.textContent = 'Listo. Revisa tu carpeta de descargas.';
+  msg.textContent = 'Preparando archivo…';
+  try {
+    const buf = await wb.xlsx.writeBuffer();
+    const url = URL.createObjectURL(new Blob([buf], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    const a = document.createElement('a');
+    a.href = url; a.download = `Actividades_${r.from}_a_${r.to}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    msg.textContent = 'Listo. Revisa tu carpeta de descargas.';
+  } catch (e){
+    console.error(e); msg.textContent = 'No se pudo generar el archivo. Intenta de nuevo.';
+  }
 });
 
 /* ---------- sesión ---------- */
