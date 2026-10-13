@@ -1,4 +1,4 @@
-// Edge Function: manda por correo (Resend) el resumen diario de la Bitácora de Pendientes.
+// Edge Function: manda por correo (Resend) el resumen diario de Backbrain.
 // Cada miembro del equipo recibe sus pendientes (donde es responsable): vencidos, para hoy,
 // próximos 3 días y los que esperan respuesta. Si no tiene nada, no se le manda correo.
 // La dispara el Cron Job "BITACORA_RESUMEN" (ver supabase/migration_resumen_diario.sql).
@@ -9,8 +9,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const FROM = Deno.env.get("DIGEST_FROM") ?? "Bitácora de Pendientes <no-reply@creditossdb.com.mx>";
-const APP_URL = "https://mente-teal.vercel.app/pendientes.html";
+const FROM = Deno.env.get("DIGEST_FROM") ?? "Backbrain <no-reply@creditossdb.com.mx>";
+const APP_URL = "https://mente-teal.vercel.app/backbrain";
 const TZ = "America/Mexico_City";
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -97,12 +97,12 @@ function buildEmail(name: string, today: string, g: { late: Item[]; now: Item[];
     ${section("Próximos 3 días", "#007aff", g.next, today, "#6e6e73")}
     ${section("Esperando respuesta", "#5856d6", g.wait, today, "#6e6e73")}
     <tr><td align="center" style="padding:26px 4px 8px">
-      <a href="${APP_URL}" style="display:inline-block;background:#007aff;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 26px;border-radius:999px">Abrir la Bitácora</a>
+      <a href="${APP_URL}" style="display:inline-block;background:#007aff;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 26px;border-radius:999px">Abrir Backbrain</a>
     </td></tr>
-    <tr><td align="center" style="padding:10px 4px;font-size:12px;color:#8e8e93">Recibes este resumen porque eres responsable de estos pendientes. Puedes apagarlo en la Bitácora, botón Equipo.</td></tr>
+    <tr><td align="center" style="padding:10px 4px;font-size:12px;color:#8e8e93">Recibes este resumen porque eres responsable de estos pendientes. Puedes apagarlo en Backbrain, botón Equipo.</td></tr>
   </table></td></tr></table></body></html>`;
   const lines = (t: string, xs: Item[]) => xs.length ? `\n${t}\n${xs.map((x) => `- ${x.title}${x.deadline ? ` (${fmtShort(x.deadline)})` : ""}`).join("\n")}\n` : "";
-  const text = `${hola}\n\n${intro}\n${lines("VENCIDOS", g.late)}${lines("PARA HOY", g.now)}${lines("PRÓXIMOS 3 DÍAS", g.next)}${lines("ESPERANDO RESPUESTA", g.wait)}\nAbrir la Bitácora: ${APP_URL}`;
+  const text = `${hola}\n\n${intro}\n${lines("VENCIDOS", g.late)}${lines("PARA HOY", g.now)}${lines("PRÓXIMOS 3 DÍAS", g.next)}${lines("ESPERANDO RESPUESTA", g.wait)}\nAbrir Backbrain: ${APP_URL}`;
   return { subject, html, text };
 }
 

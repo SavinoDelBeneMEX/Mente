@@ -1,4 +1,7 @@
 {
   "cleanUrls": false,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/backbrain", "destination": "/pendientes.html" }
+  ]
 }

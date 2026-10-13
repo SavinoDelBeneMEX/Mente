@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bitácora de Pendientes</title>
+<title>Backbrain</title>
 <link rel="icon" href="/icon-192.png">
 <meta name="robots" content="noindex, nofollow">
 <script>
@@ -67,7 +67,7 @@ button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:tran
 /* barra superior de vidrio */
 .top{position:sticky;top:0;z-index:10;margin-inline:calc(-1 * var(--gutter));padding:12px var(--gutter);display:flex;align-items:center;justify-content:space-between;gap:12px 16px;flex-wrap:wrap;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:.5px solid var(--line)}
 .brandblock{display:flex;align-items:center;gap:11px;min-width:0}
-.brand-mark{width:36px;height:36px;border-radius:10px;flex:none;display:grid;place-items:center;color:#fff;background:linear-gradient(155deg,var(--warn),var(--danger));box-shadow:0 2px 8px rgba(255,90,40,.32)}
+.brand-mark{width:36px;height:36px;border-radius:10px;flex:none;display:grid;place-items:center;color:#fff;background:linear-gradient(155deg,var(--indigo),var(--accent));box-shadow:0 2px 8px rgba(88,86,214,.35);font-family:var(--f-display);font-weight:800;font-size:20px;letter-spacing:-.04em;line-height:1}
 .brand-mark svg{width:20px;height:20px}
 .brand h1{font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:-.022em;margin:0;line-height:1.15}
 .brand .today{font-size:12.5px;color:var(--muted);letter-spacing:0}
@@ -103,7 +103,7 @@ button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:tran
 .stat.late b{color:var(--danger)}
 
 /* captura rápida */
-.quick{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.5fr) 160px 130px auto;gap:10px 10px;align-items:end;background:var(--surface);border-radius:var(--r-lg);padding:6px 14px 14px;box-shadow:var(--shadow)}
+.quick{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.4fr) 150px 120px 170px auto;gap:10px 10px;align-items:end;background:var(--surface);border-radius:var(--r-lg);padding:6px 14px 14px;box-shadow:var(--shadow)}
 .quick .f-title{grid-column:1/-1;border-bottom:.5px solid var(--line);padding-bottom:4px;margin-bottom:2px}
 .quick .f-title label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .quick .f-title .inp{background:transparent;font-size:19px;font-weight:600;letter-spacing:-.02em;padding:12px 2px;box-shadow:none}
@@ -141,6 +141,13 @@ input[type=date].inp{font-variant-numeric:tabular-nums}
 .group.week h2{color:var(--accent)}
 .group.nodate h2{color:var(--muted)}
 .group.done h2{color:var(--ok)}
+.group.person .group-h{align-items:center;gap:10px}
+.group.person h2{font-size:19px}
+.group.person .n{font-size:13.5px}
+.group.person .n b{font-weight:600}
+.c-late{color:var(--danger)} .c-soon{color:var(--warn)}
+.avatar{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--c,var(--faint));color:#fff;font-size:12.5px;font-weight:700;letter-spacing:0}
+.inv-meta{display:flex;gap:6px;align-items:center}
 .rows{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:var(--r-md);overflow:hidden;box-shadow:var(--shadow)}
 .row{--tick:var(--faint);position:relative;display:grid;grid-template-columns:28px minmax(0,1fr) 112px 88px 172px;gap:12px;align-items:center;padding:11px 16px 11px 14px;transition:background .18s}
 .row:not(:first-child)::before{content:"";position:absolute;top:0;left:54px;right:0;height:.5px;background:var(--line)}
@@ -231,7 +238,7 @@ input[type=date].inp{font-variant-numeric:tabular-nums}
 .auth{min-height:100vh;display:grid;place-items:center;padding-inline:16px;background:radial-gradient(120% 70% at 50% 0%,var(--accent-soft),transparent 60%),var(--bg)}
 .auth-card{width:min(400px,100%);background:var(--glass-card);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border-radius:var(--r-lg);padding:30px 24px 24px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow-lg)}
 .auth-card .brand-mark{width:52px;height:52px;border-radius:14px}
-.auth-card .brand-mark svg{width:28px;height:28px}
+.auth-card .brand-mark{font-size:28px}
 .auth-card h1{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:-.028em;margin:0;line-height:1.15}
 .auth-card p{margin:0;color:var(--muted)}
 .auth-card .btn{flex:1}
@@ -294,9 +301,9 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
 
 <section class="auth" id="auth" hidden>
   <form class="auth-card" id="auth-form" autocomplete="on">
-    <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><path d="M4 5.5l1.4 1.4L8 4.3M4 11l1.4 1.4L8 9.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 5.7h5.5M10.5 11.2h5.5M4.5 15.8h11.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
-    <h1>Bitácora de Pendientes</h1>
-    <p>Entra con tu cuenta de Mente. Si no tienes, crea una con tu correo de trabajo.</p>
+    <div class="brand-mark" aria-hidden="true">B</div>
+    <h1>Backbrain</h1>
+    <p id="a-lead">El segundo cerebro de tu equipo: lo que falta, quién lo pidió y para cuándo. Entra con tu cuenta de Mente o crea una con tu correo de trabajo.</p>
     <div class="field"><label for="a-email">Correo</label><input class="inp" id="a-email" type="email" autocomplete="email" required></div>
     <div class="field"><label for="a-pass">Contraseña</label><input class="inp" id="a-pass" type="password" autocomplete="current-password" required></div>
     <div class="row-btns"><button class="btn primary" type="submit">Entrar</button><button class="btn" type="button" id="a-signup">Crear cuenta</button></div>
@@ -307,7 +314,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
 <section class="auth" id="noteam" hidden>
   <div class="auth-card">
     <h1>Aún no estás en el equipo</h1>
-    <p>Pide a alguien que ya use la bitácora que te agregue desde el botón <b>Equipo</b> con este correo:</p>
+    <p>Pide a alguien del equipo que te invite desde el botón <b>Equipo</b> con este correo:</p>
     <div class="summary" id="nt-email"></div>
     <div class="row-btns"><button class="btn" type="button" id="nt-retry">Ya me agregaron</button><button class="btn ghost" type="button" data-logout>Cerrar sesión</button></div>
   </div>
@@ -316,9 +323,9 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
 <div class="app" id="app" hidden>
   <header class="top">
     <div class="brandblock">
-      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><path d="M4 5.5l1.4 1.4L8 4.3M4 11l1.4 1.4L8 9.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 5.7h5.5M10.5 11.2h5.5M4.5 15.8h11.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div class="brand-mark" aria-hidden="true">B</div>
       <div class="brand">
-        <h1>Bitácora de Pendientes</h1>
+        <h1>Backbrain</h1>
         <div class="today" id="today"></div>
       </div>
     </div>
@@ -344,15 +351,16 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
     <div class="field"><label for="q-due">Fecha compromiso</label><input class="inp" id="q-due" type="date"></div>
     <div class="field"><label for="q-pri">Prioridad</label>
       <select class="inp" id="q-pri"><option value="urgente">Urgente</option><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></div>
+    <div class="field"><label for="q-owner">Responsable</label><select class="inp" id="q-owner"></select></div>
     <div class="field f-add"><button class="btn primary" type="submit" id="q-add">Agregar</button></div>
   </form>
   <datalist id="reqs"></datalist>
 
   <div class="toolbar">
     <div class="seg" role="group" aria-label="Ver pendientes de">
-      <button type="button" data-scope="all" aria-pressed="true">Todo el equipo</button>
-      <button type="button" data-scope="mine" aria-pressed="false">Mis pendientes</button>
-      <button type="button" data-scope="created" aria-pressed="false">Que yo registré</button>
+      <button type="button" data-scope="mine" aria-pressed="true">Míos</button>
+      <button type="button" data-scope="team" aria-pressed="false">Mi equipo</button>
+      <button type="button" data-scope="all" aria-pressed="false">Todos</button>
     </div>
     <label class="searchbox"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.8" stroke="currentColor" stroke-width="1.7"/><path d="M10.6 10.6 14 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><input class="inp" id="f-q" type="search" placeholder="Buscar" aria-label="Buscar actividad o solicitante"></label>
     <select class="inp" id="f-status" aria-label="Estado">
@@ -389,16 +397,19 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
 
 <div class="modal" id="team" hidden role="dialog" aria-labelledby="team-h">
   <div class="d-head"><h2 id="team-h">Equipo</h2><button class="btn closex" type="button" data-close aria-label="Cerrar"><svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button></div>
-  <div class="field"><label for="t-myname">Tu nombre (aparece en la bitácora y en la firma de los correos)</label>
+  <div class="field"><label for="t-myname">Tu nombre (aparece en el historial y en la firma de los correos)</label>
     <div class="inline"><input class="inp" id="t-myname" placeholder="Nombre y apellido"><button class="btn" type="button" id="t-savename">Guardar</button></div></div>
   <label class="check"><input type="checkbox" id="t-digest"> Mandarme cada mañana a las 7:30 un correo con mis pendientes del día</label>
+  <div class="section">
+    <h3>Invitar por correo</h3>
+    <div class="inline"><input class="inp" id="t-email" type="email" placeholder="correo@savinodelbene.com" aria-label="Correo de la persona a invitar"><button class="btn primary" type="button" id="t-add">Enviar invitación</button></div>
+    <p class="hint" style="margin:0">Le llega un correo para crear su cuenta y entra directo al equipo. Si ya tiene cuenta, queda agregada al momento.</p>
+    <ul class="members" id="t-invites"></ul>
+  </div>
   <div class="section">
     <h3>Miembros <small id="t-count"></small></h3>
     <ul class="members" id="t-list"></ul>
   </div>
-  <div class="field"><label for="t-email">Agregar por correo</label>
-    <div class="inline"><input class="inp" id="t-email" type="email" placeholder="correo@savinodelbene.com"><button class="btn primary" type="button" id="t-add">Agregar</button></div>
-    <p class="hint" style="margin:0">La persona primero debe crear su cuenta en esta página con ese correo.</p></div>
 </div>
 
 <div class="toast" id="toast" hidden role="status"></div>
@@ -433,7 +444,7 @@ const CHECK = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="
 
 const S = {
   tasks: [], ready: false, uid: null, email: '', people: {}, team: [],
-  filter: {q:'', scope:'all', status:'open', req:''},
+  filter: {q:'', scope:'mine', status:'open', req:''}, invites: [],
   openId: null, mail: null, queue: {}, deleteArmed: false, channel: null
 };
 const byId = id => S.tasks.find(t => t.id === id);
@@ -460,13 +471,15 @@ function toTask(row, ups){
   };
 }
 async function loadAll(){
-  const [items, ups, team, people] = await Promise.all([
+  const [items, ups, team, people, invites] = await Promise.all([
     sb.from('work_items').select('*'),
     sb.from('work_updates').select('*').order('at'),
     sb.from('team_members').select('user_id'),
-    sb.from('profiles').select('id,email,full_name,daily_digest')
+    sb.from('profiles').select('id,email,full_name,daily_digest'),
+    sb.from('team_invites').select('email,invited_at').is('accepted_at', null).order('invited_at', {ascending: false})
   ]);
   const err = items.error || ups.error || team.error || people.error;
+  S.invites = invites.error ? [] : invites.data;
   if (err){ notice('No se pudieron cargar los pendientes. Recarga la página.'); console.error(err); return; }
   const byItem = {};
   ups.data.forEach(u => (byItem[u.item_id] = byItem[u.item_id] || []).push(u));
@@ -491,7 +504,7 @@ function requesters(){
 function inScope(t){
   const f = S.filter;
   if (f.scope === 'mine' && t.ownerId !== S.uid) return false;
-  if (f.scope === 'created' && t.createdBy !== S.uid) return false;
+  if (f.scope === 'team' && t.ownerId === S.uid) return false;
   return true;
 }
 function visible(){
@@ -577,7 +590,7 @@ function rowHtml(t){
   const nUp = (t.updates||[]).filter(u => u.kind === 'nota' || u.kind === 'correo').length;
   const meta = [];
   if (t.requesterName) meta.push(`<span><span class="k">Solicitó</span> ${esc(t.requesterName)}</span>`);
-  meta.push(`<span><span class="k">Responsable</span> ${esc(pname(t.ownerId))}</span>`);
+  if (S.filter.scope !== 'team') meta.push(`<span><span class="k">Responsable</span> ${esc(pname(t.ownerId))}</span>`);
   if (nUp) meta.push(`<span>${nUp} seguimiento${nUp>1?'s':''}</span>`);
   return `<li class="row pri-${p}${t.status==='hecho'?' is-done':''}${S.justDone===t.id?' just':''}" data-id="${esc(t.id)}">
     <button class="tick" type="button" data-act="toggle" aria-label="${t.status==='hecho'?'Reabrir':'Marcar como terminado'}">${CHECK}</button>
@@ -592,7 +605,16 @@ function renderList(){
   if (!S.ready){ el.innerHTML = `<div class="empty"><strong>Cargando pendientes…</strong>Un momento.</div>`; return; }
   const list = visible();
   if (!S.tasks.length){ el.innerHTML = `<div class="empty"><strong>Aún no hay pendientes</strong>Escribe el primero en la barra de arriba: qué hay que hacer, quién lo pidió y para cuándo.</div>`; return; }
-  if (!list.length){ el.innerHTML = `<div class="empty"><strong>Nada con estos filtros</strong>Cambia el estado, el solicitante o la búsqueda.</div>`; return; }
+  if (!list.length){
+    const plain = S.filter.status === 'open' && !S.filter.q && !S.filter.req;
+    const msg = plain && S.filter.scope === 'mine'
+      ? '<strong>No tienes pendientes abiertos</strong>Agrega uno arriba o revisa lo de tu equipo en “Mi equipo”.'
+      : plain && S.filter.scope === 'team'
+        ? '<strong>Tu equipo no tiene pendientes abiertos</strong>Asigna uno con el campo Responsable o invita a alguien desde Equipo.'
+        : '<strong>Nada con estos filtros</strong>Cambia el estado, el solicitante o la búsqueda.';
+    el.innerHTML = '<div class="empty">' + msg + '</div>'; return;
+  }
+  if (S.filter.scope === 'team'){ el.innerHTML = renderByPerson(list); return; }
   const done = list.filter(t => t.status === 'hecho').sort((a,b) => (b.completedAt||'').localeCompare(a.completedAt||''));
   const open = list.filter(t => t.status !== 'hecho').sort(sortOpen);
   let html = '';
@@ -603,7 +625,37 @@ function renderList(){
   if (done.length) html += `<section class="group done"><div class="group-h"><h2>Terminados</h2><span class="n">${done.length}</span></div><ul class="rows">${done.map(rowHtml).join('')}</ul></section>`;
   el.innerHTML = html;
 }
+const GROUP_RANK = Object.fromEntries(GROUPS.map(([k], i) => [k, i]));
+const byUrgency = (a,b) => GROUP_RANK[groupOf(a)] - GROUP_RANK[groupOf(b)] || sortOpen(a,b);
+const AV_COLORS = ['#007aff','#5856d6','#ff9500','#34c759','#ff2d55','#af52de','#00c7be','#ff3b30'];
+const avColor = id => { let n = 0; for (const ch of String(id)) n = (n * 31 + ch.charCodeAt(0)) >>> 0; return AV_COLORS[n % AV_COLORS.length]; };
+const initials = id => pname(id).split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join('') || '?';
+/* Vista "Mi equipo": un bloque por persona, lo más urgente primero */
+function renderByPerson(list){
+  const by = new Map();
+  list.forEach(t => { const k = t.ownerId || ''; if (!by.has(k)) by.set(k, []); by.get(k).push(t); });
+  const ids = [...by.keys()].sort((a,b) => (a === '') - (b === '') || pname(a).localeCompare(pname(b),'es'));
+  return ids.map(id => {
+    const ts = by.get(id);
+    const open = ts.filter(t => t.status !== 'hecho').sort(byUrgency);
+    const done = ts.filter(t => t.status === 'hecho').sort((a,b) => (b.completedAt||'').localeCompare(a.completedAt||''));
+    const late = open.filter(t => t.deadline && daysUntil(t.deadline) < 0).length;
+    const today = open.filter(t => t.deadline && daysUntil(t.deadline) === 0).length;
+    const parts = [
+      open.length ? open.length + ' abierto' + (open.length > 1 ? 's' : '') : '',
+      late ? '<b class="c-late">' + late + ' vencido' + (late > 1 ? 's' : '') + '</b>' : '',
+      today ? '<b class="c-soon">' + today + ' para hoy</b>' : '',
+      done.length ? done.length + ' terminado' + (done.length > 1 ? 's' : '') : ''
+    ].filter(Boolean);
+    const av = id ? '<span class="avatar" style="--c:' + avColor(id) + '" aria-hidden="true">' + esc(initials(id)) + '</span>' : '<span class="avatar" aria-hidden="true">?</span>';
+    return '<section class="group person"><div class="group-h">' + av + '<h2>' + esc(id ? pname(id) : 'Sin responsable') + '</h2><span class="n">' + parts.join(' · ') + '</span></div><ul class="rows">' + [...open, ...done].map(rowHtml).join('') + '</ul></section>';
+  }).join('');
+}
 function renderFilters(){
+  const qo = $('#q-owner'), keep = qo.value || S.uid;
+  const ids = [...new Set([S.uid, ...S.team].filter(Boolean))].sort((a,b) => (b === S.uid) - (a === S.uid) || pname(a).localeCompare(pname(b),'es'));
+  qo.innerHTML = ids.map(id => '<option value="' + esc(id) + '">' + (id === S.uid ? 'Yo' : esc(pname(id))) + '</option>').join('');
+  qo.value = ids.includes(keep) ? keep : S.uid;
   const reqs = requesters();
   $('#reqs').innerHTML = [...reqs.keys()].map(n => `<option value="${esc(n)}"></option>`).join('');
   const sel = $('#f-req'), cur = S.filter.req;
@@ -631,14 +683,14 @@ $('#quick').addEventListener('submit', async e => {
     const ins = await sb.from('work_items').insert({
       title, requester_name: $('#q-req').value.trim(), requester_email: $('#q-mail').value.trim(),
       deadline: $('#q-due').value || null, priority: $('#q-pri').value, status: 'pendiente',
-      owner_id: S.uid, created_by: S.uid
+      owner_id: $('#q-owner').value || S.uid, created_by: S.uid
     }).select().single();
     if (ins.error) return fail(ins.error);
     const up = await sb.from('work_updates').insert({item_id: ins.data.id, by: S.uid, kind: 'alta', text: 'Pendiente registrado'}).select().single();
     S.tasks.push(toTask(ins.data, up.data ? [up.data] : []));
     render();
     ['#q-title','#q-req','#q-mail','#q-due'].forEach(s => $(s).value = ''); $('#q-pri').value = 'media';
-    $('#q-title').focus(); toast('Pendiente agregado');
+    $('#q-title').focus(); toast(ins.data.owner_id && ins.data.owner_id !== S.uid ? 'Asignado a ' + pname(ins.data.owner_id) : 'Pendiente agregado');
   } finally { $('#q-add').disabled = false; }
 });
 
@@ -737,7 +789,7 @@ function buildDrawer(){
     <div class="section">
       <h3>Seguimiento <small id="d-count"></small></h3>
       <div class="field"><label for="d-note">Agregar avance o nota</label><textarea class="inp" id="d-note" placeholder="Ej. Se envió cotización al cliente, esperamos respuesta"></textarea></div>
-      <div class="row-btns"><button class="btn" type="button" id="d-addnote">Agregar a la bitácora</button></div>
+      <div class="row-btns"><button class="btn" type="button" id="d-addnote">Agregar al historial</button></div>
       <ul class="timeline" id="d-timeline"></ul>
     </div>
 
@@ -754,7 +806,7 @@ function buildDrawer(){
       <div class="row-btns">
         <a class="btn primary" id="m-open" href="#">Abrir en Outlook</a>
         <button class="btn" type="button" id="m-copy">Copiar texto</button>
-        <button class="btn" type="button" id="m-log">Ya lo envié: registrar en bitácora</button>
+        <button class="btn" type="button" id="m-log">Ya lo envié: registrar en el historial</button>
       </div>
       <p class="hint" style="margin:0">Si Outlook no se abre, usa “Copiar texto” y pégalo en un correo nuevo.</p>
     </div>
@@ -830,7 +882,7 @@ function wireDrawer(){
   });
   $('#m-log').addEventListener('click', () => {
     const m = S.mail;
-    patchTask(S.openId, () => ({log:{kind:'correo', text:`Correo enviado a ${m.to || 'solicitante'}: “${m.subject}”`}})).then(() => toast('Envío registrado en la bitácora'));
+    patchTask(S.openId, () => ({log:{kind:'correo', text:`Correo enviado a ${m.to || 'solicitante'}: “${m.subject}”`}})).then(() => toast('Envío registrado en el historial'));
   });
   $('#d-del').addEventListener('click', async e => {
     const b = e.currentTarget;
@@ -868,7 +920,27 @@ function syncDrawer(){
 }
 
 /* ---------- equipo ---------- */
+function renderInvites(){
+  $('#t-invites').innerHTML = S.invites.map(i => '<li><div><div>' + esc(i.email) + '</div><div class="em">Invitación enviada el ' + esc(fmtDT(i.invited_at)) + ' · aún no crea su cuenta</div></div><div class="inv-meta"><button class="btn ghost" type="button" data-resend="' + esc(i.email) + '">Reenviar</button><button class="btn ghost" type="button" data-cancel="' + esc(i.email) + '">Cancelar</button></div></li>').join('');
+}
+async function sendInvite(email, btn){
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Enviando…';
+  try {
+    const {data, error} = await sb.functions.invoke('invite-member', {body: {email}});
+    if (error){
+      let msg = 'No se pudo enviar la invitación.';
+      try { const j = await error.context.json(); if (j && j.error) msg = j.error; } catch {}
+      toast(msg); return false;
+    }
+    if (data.status === 'already') toast('Esa persona ya está en el equipo.');
+    else if (data.status === 'added') toast(data.emailed ? 'Ya tenía cuenta: quedó en el equipo y le avisamos por correo' : 'Ya tenía cuenta: quedó en el equipo (el correo de aviso no salió)');
+    else toast(data.emailed ? 'Invitación enviada a ' + email : 'La invitación quedó guardada, pero el correo no salió. Usa Reenviar.');
+    await loadAll();
+    return true;
+  } finally { btn.disabled = false; btn.textContent = label; }
+}
 function renderTeam(){
+  renderInvites();
   const ids = [...S.team].sort((a,b) => pname(a).localeCompare(pname(b),'es'));
   $('#t-count').textContent = `${ids.length} persona${ids.length===1?'':'s'}`;
   $('#t-list').innerHTML = ids.map(id => {
@@ -895,14 +967,20 @@ $('#t-digest').addEventListener('change', async e => {
   if (S.people[S.uid]) S.people[S.uid].daily_digest = on;
   toast(on ? 'Te llegará el resumen cada mañana' : 'Resumen diario apagado');
 });
-$('#t-add').addEventListener('click', async () => {
-  const email = $('#t-email').value.trim().toLowerCase(); if (!email) return;
-  const p = Object.values(S.people).find(x => (x.email||'').toLowerCase() === email);
-  if (!p){ toast('Ese correo aún no tiene cuenta. Pídele que entre a esta página y cree su cuenta primero.'); return; }
-  if (S.team.includes(p.id)){ toast('Esa persona ya está en el equipo.'); return; }
-  const r = await sb.from('team_members').insert({user_id: p.id, added_by: S.uid});
+$('#t-add').addEventListener('click', async e => {
+  const email = $('#t-email').value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Escribe un correo válido.'); $('#t-email').focus(); return; }
+  if (await sendInvite(email, e.currentTarget)) $('#t-email').value = '';
+});
+$('#t-email').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#t-add').click(); } });
+$('#t-invites').addEventListener('click', async e => {
+  const rs = e.target.closest('[data-resend]');
+  if (rs) return sendInvite(rs.dataset.resend, rs);
+  const c = e.target.closest('[data-cancel]'); if (!c) return;
+  if (c.dataset.armed !== '1'){ c.dataset.armed = '1'; c.textContent = '¿Cancelar? Confirmar'; c.classList.add('danger'); return; }
+  const r = await sb.from('team_invites').delete().eq('email', c.dataset.cancel);
   if (r.error) return fail(r.error);
-  S.team.push(p.id); $('#t-email').value = ''; renderTeam(); toast('Agregado al equipo');
+  S.invites = S.invites.filter(i => i.email !== c.dataset.cancel); renderInvites(); toast('Invitación cancelada');
 });
 $('#t-list').addEventListener('click', async e => {
   const b = e.target.closest('[data-rm]'); if (!b) return;
@@ -1055,6 +1133,13 @@ function stop(){
   show('#auth');
 }
 sb.auth.onAuthStateChange((ev, session) => { if (session) start(session.user); else stop(); });
+(function inviteLink(){
+  const email = new URLSearchParams(location.search).get('correo');
+  if (!email) return;
+  $('#a-email').value = email;
+  $('#a-lead').textContent = 'Te invitaron al equipo. Escribe una contraseña nueva (mínimo 6 caracteres) y da clic en Crear cuenta.';
+  $('#a-signup').classList.add('primary');
+})();
 sb.auth.getSession().then(r => { if (r.data.session) start(r.data.session.user); else show('#auth'); });
 })();
 </script>
