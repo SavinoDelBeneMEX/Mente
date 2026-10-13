@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bitácora de Pendientes</title>
+<link rel="icon" href="/icon-192.png">
+<meta name="robots" content="noindex, nofollow">
+<script>
+  window.MENTE_CONFIG = {
+    SUPABASE_URL: 'https://ecmenbgaeqvojfcgyjgc.supabase.co',
+    SUPABASE_ANON_KEY: 'sb_publishable_tl9yhkWtzYsWk2WC102YNQ_Qq0Tnhut'
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: una columna de trabajo — resumen arriba, captura rápida, lista agrupada por fecha compromiso; detalle en panel lateral. */
+:root{
+  --bg:#f2f4f6; --surface:#ffffff; --surface-2:#e9edf1; --line:#d6dce3; --line-soft:#e6eaef;
+  --ink:#15202b; --muted:#5a6775; --accent:#0e5a89; --accent-soft:#dcebf5; --accent-ink:#ffffff;
+  --danger:#bf3328; --danger-soft:#f8e1de; --warn:#b86a0e; --warn-soft:#f8ead6; --ok:#2b7a4b; --ok-soft:#dcefe3;
+  --shadow:0 18px 50px rgba(15,30,45,.18);
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1319; --surface:#161d25; --surface-2:#1e2731; --line:#2b3642; --line-soft:#222c37;
+  --ink:#e5eaef; --muted:#93a0ad; --accent:#5ea8d9; --accent-soft:#17324a; --accent-ink:#07131c;
+  --danger:#ef7166; --danger-soft:#3d1d1b; --warn:#eda44c; --warn-soft:#3a2a14; --ok:#5cc489; --ok-soft:#163222;
+  --shadow:0 18px 50px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1319; --surface:#161d25; --surface-2:#1e2731; --line:#2b3642; --line-soft:#222c37;
+  --ink:#e5eaef; --muted:#93a0ad; --accent:#5ea8d9; --accent-soft:#17324a; --accent-ink:#07131c;
+  --danger:#ef7166; --danger-soft:#3d1d1b; --warn:#eda44c; --warn-soft:#3a2a14; --ok:#5cc489; --ok-soft:#163222;
+  --shadow:0 18px 50px rgba(0,0,0,.5); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{max-width:1120px;margin:0 auto;padding-block:24px 72px;padding-inline:clamp(16px,4vw,32px);display:flex;flex-direction:column;gap:20px}
+
+/* encabezado */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:clamp(24px,3.4vw,32px);letter-spacing:-.01em;margin:0;line-height:1.05;text-wrap:balance}
+.brand .today{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:6px}
+.top-actions{display:flex;align-items:center;gap:10px}
+.me{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.me img{width:28px;height:28px;border-radius:50%}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:8px 14px;font-weight:500;text-decoration:none;color:var(--ink);white-space:nowrap;transition:background .15s,border-color .15s}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--ink);background:var(--surface-2)}
+.btn.danger{color:var(--danger)}
+.btn.danger.armed{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.notice{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:10px 14px;color:var(--muted)}
+
+/* resumen */
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.stat{padding:12px 16px;border-left:1px solid var(--line-soft);display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat:first-child{border-left:0}
+.stat b{font-family:var(--f-display);font-weight:700;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.late b{color:var(--danger)}
+.stat.soon b{color:var(--warn)}
+.stat.ok b{color:var(--ok)}
+
+/* captura rápida */
+.quick{display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1.3fr) minmax(0,1.4fr) 150px 120px auto;gap:8px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:500}
+.inp{width:100%;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:var(--r);padding:8px 10px}
+.inp:focus{border-color:var(--accent);outline:none;background:var(--surface)}
+textarea.inp{resize:vertical;min-height:72px;line-height:1.5}
+input[type=date].inp{font-family:var(--f-mono);font-size:13px}
+
+/* barra de filtros */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:7px 12px;color:var(--muted);border-left:1px solid var(--line-soft)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+.toolbar .search{flex:1 1 220px}
+.toolbar select.inp{width:auto;flex:0 1 200px}
+
+/* lista */
+.group{display:flex;flex-direction:column}
+.group-h{display:flex;align-items:baseline;gap:10px;padding:14px 4px 6px;border-bottom:1px solid var(--line)}
+.group-h h2{font-family:var(--f-display);font-weight:700;font-size:15px;margin:0;letter-spacing:.01em}
+.group-h .n{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.group.late .group-h h2{color:var(--danger)}
+.rows{list-style:none;margin:0;padding:0}
+.row{display:grid;grid-template-columns:30px minmax(0,1fr) 118px 92px 168px;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line-soft)}
+.row:hover{background:var(--surface)}
+.row.is-done .row-title{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.tick{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--muted);background:transparent;padding:0;display:grid;place-items:center;transition:background .15s,border-color .15s}
+.tick:hover{border-color:var(--ok)}
+.tick svg{width:12px;height:12px;opacity:0}
+.is-done .tick{background:var(--ok);border-color:var(--ok)}
+.is-done .tick svg{opacity:1;color:var(--surface)}
+.row-main{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0}
+.row-main:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+.row-title{font-weight:600;font-size:14.5px;overflow-wrap:anywhere}
+.row-meta{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
+.row-meta .k{color:var(--muted);opacity:.8}
+.due{font-family:var(--f-mono);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.due.late{color:var(--danger);font-weight:500}
+.due.today,.due.soon{color:var(--warn)}
+.due.none,.due.later,.due.done{color:var(--muted)}
+.pri{font-size:12.5px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.pri::before{content:"";width:9px;height:9px;border-radius:2px;background:var(--line)}
+.pri.urgente::before{background:var(--danger)} .pri.urgente{color:var(--danger);font-weight:600}
+.pri.alta::before{background:var(--warn)}
+.pri.media::before{background:var(--accent)}
+.pri.baja::before{background:var(--line)} .pri.baja{color:var(--muted)}
+.st{justify-self:start;font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.st.proceso{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.st.espera{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.st.hecho{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
+.empty{padding:40px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r)}
+.empty strong{display:block;color:var(--ink);font-family:var(--f-display);font-size:17px;margin-bottom:4px}
+
+/* panel lateral */
+.scrim{position:fixed;inset:0;background:rgba(10,18,26,.38);z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--shadow);z-index:21;overflow-y:auto;padding:calc(16px + env(safe-area-inset-top,0px)) clamp(16px,3vw,24px) calc(32px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:18px;animation:slide .22s cubic-bezier(.2,.9,.3,1)}
+@keyframes slide{from{transform:translateX(24px);opacity:.4}to{transform:none;opacity:1}}
+.d-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.folio{font-family:var(--f-mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+.d-title{font-family:var(--f-display);font-weight:700;font-size:21px;border:1px solid transparent;background:transparent;padding:4px 6px;margin:-4px -6px;border-radius:var(--r);width:calc(100% + 12px);resize:none;line-height:1.25}
+.d-title:hover{border-color:var(--line)}
+.d-title:focus{outline:none;border-color:var(--accent);background:var(--bg)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.section{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:16px}
+.section h3{font-family:var(--f-display);font-size:15px;font-weight:700;margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.section h3 small{font-family:var(--f-body);font-weight:400;font-size:12px;color:var(--muted)}
+.picker{position:relative}
+.picker-cur{display:flex;align-items:center;gap:8px;min-height:36px}
+.picker-cur img{width:22px;height:22px;border-radius:50%}
+.hits{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);list-style:none;padding:4px;z-index:5;max-height:240px;overflow:auto}
+.hits button{all:unset;display:flex;gap:8px;align-items:center;width:100%;box-sizing:border-box;padding:6px 8px;border-radius:4px;cursor:pointer}
+.hits button:hover,.hits button:focus-visible{background:var(--surface-2)}
+.hits img{width:22px;height:22px;border-radius:50%}
+.hits .em{color:var(--muted);font-size:12px}
+.timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.timeline li{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+.timeline time{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);padding-top:2px}
+.timeline .txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.timeline .by{font-size:12px;color:var(--muted)}
+.timeline .kind{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:6px}
+.timeline .kind.correo{color:var(--accent)}
+.timeline .kind.nota{color:var(--ink)}
+.row-btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{font-size:12px;color:var(--muted)}
+.d-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+
+/* reporte */
+.modal{position:fixed;z-index:21;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:22px;display:flex;flex-direction:column;gap:16px}
+.modal h2{font-family:var(--f-display);font-weight:800;font-size:20px;margin:0}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:4px 12px;font-size:12.5px}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.check{display:flex;gap:8px;align-items:center}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.summary{font-family:var(--f-mono);font-size:13px;background:var(--bg);border:1px solid var(--line-soft);border-radius:var(--r);padding:10px 12px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--r);font-size:13px;z-index:30;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
+
+@media (max-width:900px){
+  .quick{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quick .f-title{grid-column:1/-1}
+  .quick .f-add{align-self:end}
+  .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .stat:nth-child(4){border-left:0}
+  .stat:nth-child(n+4){border-top:1px solid var(--line-soft)}
+}
+@media (max-width:720px){
+  .row{grid-template-columns:30px minmax(0,1fr) auto;grid-template-areas:"tick main main" ". due pri" ". st st";row-gap:6px}
+  .row .tick{grid-area:tick}.row .row-main{grid-area:main}.row .due{grid-area:due}.row .pri{grid-area:pri;justify-self:end}.row .st{grid-area:st}
+  .grid2{grid-template-columns:minmax(0,1fr)}
+  .timeline li{grid-template-columns:minmax(0,1fr)}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat{border-left:0;border-top:1px solid var(--line-soft)}
+  .stat:nth-child(-n+2){border-top:0}
+  .stat:nth-child(even){border-left:1px solid var(--line-soft)}
+  .stat:last-child{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+html{color-scheme:light}
+body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.auth{min-height:100vh;display:grid;place-items:center;padding-inline:16px}
+.auth-card{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:28px 24px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
+.auth-card h1{font-family:var(--f-display);font-weight:800;font-size:24px;margin:0}
+.auth-card p{margin:0;color:var(--muted)}
+.auth-msg{min-height:1.2em;font-size:13px;color:var(--danger)}
+.auth-msg.ok{color:var(--ok)}
+.toplinks{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.members{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.members li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+.members .em{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.inline{display:flex;gap:8px;flex-wrap:wrap}
+.inline .inp{flex:1 1 200px}
+</style>
+</head>
+<body>
+
+<section class="auth" id="auth" hidden>
+  <form class="auth-card" id="auth-form" autocomplete="on">
+    <h1>Bitácora de Pendientes</h1>
+    <p>Entra con tu cuenta de Mente. Si no tienes, crea una con tu correo de trabajo.</p>
+    <div class="field"><label for="a-email">Correo</label><input class="inp" id="a-email" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="a-pass">Contraseña</label><input class="inp" id="a-pass" type="password" autocomplete="current-password" required></div>
+    <div class="row-btns"><button class="btn primary" type="submit">Entrar</button><button class="btn" type="button" id="a-signup">Crear cuenta</button></div>
+    <div class="auth-msg" id="a-msg" role="status"></div>
+  </form>
+</section>
+
+<section class="auth" id="noteam" hidden>
+  <div class="auth-card">
+    <h1>Aún no estás en el equipo</h1>
+    <p>Pide a alguien que ya use la bitácora que te agregue desde el botón <b>Equipo</b> con este correo:</p>
+    <div class="summary" id="nt-email"></div>
+    <div class="row-btns"><button class="btn" type="button" id="nt-retry">Ya me agregaron</button><button class="btn ghost" type="button" data-logout>Cerrar sesión</button></div>
+  </div>
+</section>
+
+<div class="app" id="app" hidden>
+  <header class="top">
+    <div class="brand">
+      <h1>Bitácora de Pendientes</h1>
+      <div class="today" id="today"></div>
+    </div>
+    <div class="top-actions toplinks">
+      <button class="btn" id="open-report" type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="1.5" width="12" height="13" rx="1.5" stroke="currentColor"/><path d="M5 5.5h6M5 8h6M5 10.5h4" stroke="currentColor"/></svg>
+        Reporte en Excel
+      </button>
+      <button class="btn" id="open-team" type="button">Equipo</button>
+      <a class="btn ghost" href="/">Ir a Mente</a>
+      <button class="btn ghost" type="button" data-logout>Salir</button>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="stats" id="stats" aria-label="Resumen"></section>
+
+  <form class="quick" id="quick" autocomplete="off">
+    <div class="field f-title"><label for="q-title">Nuevo pendiente</label><input class="inp" id="q-title" required placeholder="¿Qué hay que hacer?"></div>
+    <div class="field"><label for="q-req">Lo solicitó</label><input class="inp" id="q-req" list="reqs" placeholder="Nombre"></div>
+    <div class="field"><label for="q-mail">Correo de quien solicita</label><input class="inp" id="q-mail" type="email" placeholder="nombre@empresa.com"></div>
+    <div class="field"><label for="q-due">Fecha compromiso</label><input class="inp" id="q-due" type="date"></div>
+    <div class="field"><label for="q-pri">Prioridad</label>
+      <select class="inp" id="q-pri"><option value="urgente">Urgente</option><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></div>
+    <div class="field f-add"><button class="btn primary" type="submit" id="q-add">Agregar</button></div>
+  </form>
+  <datalist id="reqs"></datalist>
+
+  <div class="toolbar">
+    <div class="seg" role="group" aria-label="Ver pendientes de">
+      <button type="button" data-scope="all" aria-pressed="true">Todo el equipo</button>
+      <button type="button" data-scope="mine" aria-pressed="false">Mis pendientes</button>
+      <button type="button" data-scope="created" aria-pressed="false">Que yo registré</button>
+    </div>
+    <input class="inp search" id="f-q" type="search" placeholder="Buscar actividad o solicitante">
+    <select class="inp" id="f-status" aria-label="Estado">
+      <option value="open">Abiertos</option><option value="pendiente">Pendiente</option><option value="proceso">En proceso</option><option value="espera">En espera de respuesta</option><option value="hecho">Terminados</option><option value="all">Todos</option>
+    </select>
+    <select class="inp" id="f-req" aria-label="Solicitante"><option value="">Todos los solicitantes</option></select>
+  </div>
+
+  <main id="list"></main>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Detalle del pendiente"></aside>
+
+<div class="modal" id="report" hidden role="dialog" aria-labelledby="rep-h">
+  <div class="d-head"><h2 id="rep-h">Reporte de actividades</h2><button class="btn ghost" type="button" data-close aria-label="Cerrar">✕</button></div>
+  <p class="hint" style="margin:0">Genera un Excel con las actividades terminadas en el periodo, su bitácora de seguimiento y un resumen por solicitante.</p>
+  <div class="presets" id="presets">
+    <button type="button" class="chip" data-preset="week">Esta semana</button>
+    <button type="button" class="chip" data-preset="lastweek">Semana pasada</button>
+    <button type="button" class="chip" data-preset="month">Este mes</button>
+    <button type="button" class="chip" data-preset="lastmonth">Mes pasado</button>
+    <button type="button" class="chip" data-preset="year">Este año</button>
+  </div>
+  <div class="grid2">
+    <div class="field"><label for="r-from">Desde</label><input class="inp" id="r-from" type="date"></div>
+    <div class="field"><label for="r-to">Hasta</label><input class="inp" id="r-to" type="date"></div>
+  </div>
+  <label class="check"><input type="checkbox" id="r-open"> Incluir también los pendientes que siguen abiertos</label>
+  <label class="check"><input type="checkbox" id="r-mine"> Solo mis pendientes</label>
+  <div class="summary" id="r-sum"></div>
+  <div class="row-btns"><button class="btn primary" type="button" id="r-go">Descargar Excel</button><span class="hint" id="r-msg"></span></div>
+</div>
+
+<div class="modal" id="team" hidden role="dialog" aria-labelledby="team-h">
+  <div class="d-head"><h2 id="team-h">Equipo</h2><button class="btn ghost" type="button" data-close aria-label="Cerrar">✕</button></div>
+  <div class="field"><label for="t-myname">Tu nombre (aparece en la bitácora y en la firma de los correos)</label>
+    <div class="inline"><input class="inp" id="t-myname" placeholder="Nombre y apellido"><button class="btn" type="button" id="t-savename">Guardar</button></div></div>
+  <div class="section">
+    <h3>Miembros <small id="t-count"></small></h3>
+    <ul class="members" id="t-list"></ul>
+  </div>
+  <div class="field"><label for="t-email">Agregar por correo</label>
+    <div class="inline"><input class="inp" id="t-email" type="email" placeholder="correo@savinodelbene.com"><button class="btn primary" type="button" id="t-add">Agregar</button></div>
+    <p class="hint" style="margin:0">La persona primero debe crear su cuenta en esta página con ese correo.</p></div>
+</div>
+
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+(function(){
+const cfg = window.MENTE_CONFIG;
+const sb = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const todayStr = () => ymd(new Date());
+const parseYmd = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+const daysUntil = s => Math.round((parseYmd(s) - parseYmd(todayStr())) / 86400000);
+const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MESL = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIA = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const fmtDate = s => { const d = parseYmd(s); return `${d.getDate()} ${MES[d.getMonth()]}`; };
+const longDate = s => { const d = parseYmd(s); return `${DIA[d.getDay()]} ${d.getDate()} de ${MESL[d.getMonth()]}`; };
+const fmtDT = iso => { const d = new Date(iso); return `${d.getDate()} ${MES[d.getMonth()]} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const nowIso = () => new Date().toISOString();
+
+const PRI = {urgente:{l:'Urgente',r:0}, alta:{l:'Alta',r:1}, media:{l:'Media',r:2}, baja:{l:'Baja',r:3}};
+const STATUS = {pendiente:'Pendiente', proceso:'En proceso', espera:'En espera de respuesta', hecho:'Terminado'};
+const KIND = {alta:'Alta', nota:'Seguimiento', estado:'Estado', correo:'Correo', resp:'Responsable', prioridad:'Prioridad', fecha:'Fecha'};
+const COL = {title:'title', description:'description', requesterName:'requester_name', requesterEmail:'requester_email', deadline:'deadline', priority:'priority', status:'status', ownerId:'owner_id', completedAt:'completed_at'};
+const CHECK = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6.3l2.3 2.2 4.7-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+const S = {
+  tasks: [], ready: false, uid: null, email: '', people: {}, team: [],
+  filter: {q:'', scope:'all', status:'open', req:''},
+  openId: null, mail: null, queue: {}, deleteArmed: false, channel: null
+};
+const byId = id => S.tasks.find(t => t.id === id);
+const folio = t => '#' + String(t.id).replace(/-/g,'').slice(-5).toUpperCase();
+function pname(id){
+  if (!id) return 'Sin asignar';
+  const p = S.people[id];
+  if (p) return p.full_name || p.email.split('@')[0];
+  return 'Alguien';
+}
+const myName = () => { const p = S.people[S.uid]; return p && p.full_name ? p.full_name : ''; };
+
+let toastT;
+function toast(msg){ const el = $('#toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3200); }
+function notice(msg){ const n = $('#notice'); if (msg){ n.textContent = msg; n.hidden = false; } else n.hidden = true; }
+function fail(err){ console.error(err); toast('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'); }
+
+/* ---------- carga de datos ---------- */
+function toTask(row, ups){
+  return {
+    id: row.id, title: row.title, description: row.description, requesterName: row.requester_name, requesterEmail: row.requester_email,
+    deadline: row.deadline, priority: row.priority, status: row.status, ownerId: row.owner_id, createdBy: row.created_by,
+    createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at, updates: ups || []
+  };
+}
+async function loadAll(){
+  const [items, ups, team, people] = await Promise.all([
+    sb.from('work_items').select('*'),
+    sb.from('work_updates').select('*').order('at'),
+    sb.from('team_members').select('user_id'),
+    sb.from('profiles').select('id,email,full_name')
+  ]);
+  const err = items.error || ups.error || team.error || people.error;
+  if (err){ notice('No se pudieron cargar los pendientes. Recarga la página.'); console.error(err); return; }
+  const byItem = {};
+  ups.data.forEach(u => (byItem[u.item_id] = byItem[u.item_id] || []).push(u));
+  S.tasks = items.data.map(r => toTask(r, byItem[r.id]));
+  S.team = team.data.map(r => r.user_id);
+  S.people = Object.fromEntries(people.data.map(p => [p.id, p]));
+  S.ready = true; notice('');
+  render();
+}
+let reloadT;
+const scheduleReload = () => { clearTimeout(reloadT); reloadT = setTimeout(loadAll, 250); };
+
+/* ---------- consultas ---------- */
+function requesters(){
+  const map = new Map();
+  [...S.tasks].sort((a,b) => (a.createdAt||'').localeCompare(b.createdAt||'')).forEach(t => {
+    const n = (t.requesterName||'').trim(); if (!n) return;
+    map.set(n, (t.requesterEmail||'').trim() || map.get(n) || '');
+  });
+  return map;
+}
+function inScope(t){
+  const f = S.filter;
+  if (f.scope === 'mine' && t.ownerId !== S.uid) return false;
+  if (f.scope === 'created' && t.createdBy !== S.uid) return false;
+  return true;
+}
+function visible(){
+  const f = S.filter, q = f.q.trim().toLowerCase();
+  return S.tasks.filter(t => {
+    if (!inScope(t)) return false;
+    if (f.status === 'open' && t.status === 'hecho') return false;
+    if (!['open','all'].includes(f.status) && t.status !== f.status) return false;
+    if (f.req && (t.requesterName||'').trim() !== f.req) return false;
+    if (q && !`${t.title} ${t.description||''} ${t.requesterName||''}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+const sortOpen = (a,b) => (PRI[a.priority]||PRI.media).r - (PRI[b.priority]||PRI.media).r
+  || (a.deadline||'9999').localeCompare(b.deadline||'9999') || (a.createdAt||'').localeCompare(b.createdAt||'');
+function groupOf(t){
+  if (!t.deadline) return 'nodate';
+  const n = daysUntil(t.deadline);
+  if (n < 0) return 'late'; if (n <= 1) return 'now'; if (n <= 7) return 'week'; return 'later';
+}
+const GROUPS = [['late','Vencidos'],['now','Hoy y mañana'],['week','Próximos 7 días'],['later','Más adelante'],['nodate','Sin fecha compromiso']];
+function dueInfo(t){
+  if (!t.deadline) return {cls:'none', label:'Sin fecha'};
+  if (t.status === 'hecho') return {cls:'done', label:fmtDate(t.deadline)};
+  const n = daysUntil(t.deadline);
+  if (n < 0) return {cls:'late', label:`Vencido ${-n} d`};
+  if (n === 0) return {cls:'today', label:'Vence hoy'};
+  if (n === 1) return {cls:'soon', label:'Mañana'};
+  if (n <= 7) return {cls:'soon', label:`En ${n} días`};
+  return {cls:'later', label:fmtDate(t.deadline)};
+}
+
+/* ---------- escritura ---------- */
+function patchTask(id, patchFn){
+  const run = async () => {
+    const t = byId(id); if (!t) return;
+    const out = patchFn(t); if (!out) return;
+    const {patch = {}, log} = out;
+    const row = {updated_at: nowIso()};
+    Object.entries(patch).forEach(([k,v]) => { if (COL[k]) row[COL[k]] = v; });
+    Object.assign(t, patch);
+    const logs = log ? [].concat(log).map(l => ({item_id: id, by: S.uid, kind: l.kind, text: l.text || '', who: l.who || null})) : [];
+    logs.forEach(l => t.updates.push({...l, at: nowIso()}));
+    render();
+    const r1 = await sb.from('work_items').update(row).eq('id', id);
+    if (r1.error) return fail(r1.error);
+    if (logs.length){ const r2 = await sb.from('work_updates').insert(logs); if (r2.error) return fail(r2.error); }
+  };
+  S.queue[id] = (S.queue[id] || Promise.resolve()).then(run);
+  return S.queue[id];
+}
+function setStatus(id, status){
+  return patchTask(id, t => {
+    if (t.status === status) return null;
+    return {patch: {status, completedAt: status === 'hecho' ? nowIso() : null}, log: {kind:'estado', text:`Cambió a "${STATUS[status]}"`}};
+  });
+}
+
+/* ---------- render principal ---------- */
+function renderStats(){
+  const scoped = S.tasks.filter(inScope);
+  const open = scoped.filter(t => t.status !== 'hecho');
+  const late = open.filter(t => t.deadline && daysUntil(t.deadline) < 0).length;
+  const soon = open.filter(t => t.deadline && daysUntil(t.deadline) >= 0 && daysUntil(t.deadline) <= 1).length;
+  const wait = open.filter(t => t.status === 'espera').length;
+  const weekAgo = Date.now() - 7*86400000;
+  const done7 = scoped.filter(t => t.status === 'hecho' && t.completedAt && Date.parse(t.completedAt) >= weekAgo).length;
+  $('#stats').innerHTML = [
+    ['', open.length, 'Abiertos'], ['late', late, 'Vencidos'], ['soon', soon, 'Vencen hoy o mañana'],
+    ['', wait, 'Esperando respuesta'], ['ok', done7, 'Terminados en 7 días']
+  ].map(([c,n,l]) => `<div class="stat ${c}"><b>${S.ready ? n : '–'}</b><span>${l}</span></div>`).join('');
+}
+function rowHtml(t){
+  const d = dueInfo(t), p = PRI[t.priority] ? t.priority : 'media';
+  const nUp = (t.updates||[]).filter(u => u.kind === 'nota' || u.kind === 'correo').length;
+  const meta = [];
+  if (t.requesterName) meta.push(`<span><span class="k">Solicitó</span> ${esc(t.requesterName)}</span>`);
+  meta.push(`<span><span class="k">Responsable</span> ${esc(pname(t.ownerId))}</span>`);
+  if (nUp) meta.push(`<span>${nUp} seguimiento${nUp>1?'s':''}</span>`);
+  return `<li class="row${t.status==='hecho'?' is-done':''}" data-id="${esc(t.id)}">
+    <button class="tick" type="button" data-act="toggle" aria-label="${t.status==='hecho'?'Reabrir':'Marcar como terminado'}">${CHECK}</button>
+    <button class="row-main" type="button" data-act="open"><span class="row-title">${esc(t.title)}</span><span class="row-meta">${meta.join('')}</span></button>
+    <span class="due ${d.cls}">${esc(d.label)}</span>
+    <span class="pri ${p}">${PRI[p].l}</span>
+    <span class="st ${esc(t.status)}">${esc(STATUS[t.status]||'Pendiente')}</span>
+  </li>`;
+}
+function renderList(){
+  const el = $('#list');
+  if (!S.ready){ el.innerHTML = `<div class="empty"><strong>Cargando pendientes…</strong>Un momento.</div>`; return; }
+  const list = visible();
+  if (!S.tasks.length){ el.innerHTML = `<div class="empty"><strong>Aún no hay pendientes</strong>Escribe el primero en la barra de arriba: qué hay que hacer, quién lo pidió y para cuándo.</div>`; return; }
+  if (!list.length){ el.innerHTML = `<div class="empty"><strong>Nada con estos filtros</strong>Cambia el estado, el solicitante o la búsqueda.</div>`; return; }
+  const done = list.filter(t => t.status === 'hecho').sort((a,b) => (b.completedAt||'').localeCompare(a.completedAt||''));
+  const open = list.filter(t => t.status !== 'hecho').sort(sortOpen);
+  let html = '';
+  GROUPS.forEach(([k,label]) => {
+    const g = open.filter(t => groupOf(t) === k);
+    if (g.length) html += `<section class="group ${k}"><div class="group-h"><h2>${label}</h2><span class="n">${g.length}</span></div><ul class="rows">${g.map(rowHtml).join('')}</ul></section>`;
+  });
+  if (done.length) html += `<section class="group done"><div class="group-h"><h2>Terminados</h2><span class="n">${done.length}</span></div><ul class="rows">${done.map(rowHtml).join('')}</ul></section>`;
+  el.innerHTML = html;
+}
+function renderFilters(){
+  const reqs = requesters();
+  $('#reqs').innerHTML = [...reqs.keys()].map(n => `<option value="${esc(n)}"></option>`).join('');
+  const sel = $('#f-req'), cur = S.filter.req;
+  sel.innerHTML = `<option value="">Todos los solicitantes</option>` + [...reqs.keys()].sort((a,b)=>a.localeCompare(b,'es')).map(n => `<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
+  document.querySelectorAll('.seg [data-scope]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.scope === S.filter.scope)));
+}
+function render(){
+  renderStats(); renderFilters(); renderList();
+  if (S.openId) syncDrawer();
+  if (!$('#report').hidden) updateReportSummary();
+  if (!$('#team').hidden) renderTeam();
+}
+
+/* ---------- captura rápida ---------- */
+$('#q-req').addEventListener('change', e => {
+  const mail = requesters().get(e.target.value.trim());
+  if (mail && !$('#q-mail').value) $('#q-mail').value = mail;
+});
+$('#quick').addEventListener('submit', async e => {
+  e.preventDefault();
+  const title = $('#q-title').value.trim(); if (!title) return;
+  $('#q-add').disabled = true;
+  try {
+    const ins = await sb.from('work_items').insert({
+      title, requester_name: $('#q-req').value.trim(), requester_email: $('#q-mail').value.trim(),
+      deadline: $('#q-due').value || null, priority: $('#q-pri').value, status: 'pendiente',
+      owner_id: S.uid, created_by: S.uid
+    }).select().single();
+    if (ins.error) return fail(ins.error);
+    const up = await sb.from('work_updates').insert({item_id: ins.data.id, by: S.uid, kind: 'alta', text: 'Pendiente registrado'}).select().single();
+    S.tasks.push(toTask(ins.data, up.data ? [up.data] : []));
+    render();
+    ['#q-title','#q-req','#q-mail','#q-due'].forEach(s => $(s).value = ''); $('#q-pri').value = 'media';
+    $('#q-title').focus(); toast('Pendiente agregado');
+  } finally { $('#q-add').disabled = false; }
+});
+
+/* ---------- filtros ---------- */
+document.querySelector('.seg').addEventListener('click', e => { const b = e.target.closest('[data-scope]'); if (!b) return; S.filter.scope = b.dataset.scope; render(); });
+$('#f-q').addEventListener('input', e => { S.filter.q = e.target.value; renderList(); });
+$('#f-status').addEventListener('change', e => { S.filter.status = e.target.value; renderList(); });
+$('#f-req').addEventListener('change', e => { S.filter.req = e.target.value; renderList(); });
+
+$('#list').addEventListener('click', e => {
+  const row = e.target.closest('.row'); if (!row) return;
+  const act = e.target.closest('[data-act]'); if (!act) return;
+  const t = byId(row.dataset.id); if (!t) return;
+  if (act.dataset.act === 'toggle') setStatus(t.id, t.status === 'hecho' ? 'pendiente' : 'hecho');
+  else openDrawer(t.id);
+});
+
+/* ---------- panel de detalle ---------- */
+function openDrawer(id){
+  S.openId = id; S.mail = null; S.deleteArmed = false;
+  buildDrawer(); $('#drawer').hidden = false; $('#scrim').hidden = false;
+  syncDrawer(); setTimeout(() => $('#d-title') && $('#d-title').focus(), 30);
+}
+function closeAll(){
+  S.openId = null; $('#drawer').hidden = true; $('#report').hidden = true; $('#team').hidden = true; $('#scrim').hidden = true; $('#drawer').innerHTML = '';
+}
+$('#scrim').addEventListener('click', closeAll);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#scrim').hidden) closeAll(); });
+document.addEventListener('click', e => { if (e.target.closest('[data-close]')) closeAll(); });
+
+function buildDrawer(){
+  $('#drawer').innerHTML = `
+    <div class="d-head"><span class="folio" id="d-folio"></span><button class="btn ghost" type="button" data-close aria-label="Cerrar">✕</button></div>
+    <textarea class="d-title" id="d-title" rows="2" data-field="title"></textarea>
+    <div class="grid2">
+      <div class="field"><label for="d-status">Estado</label><select class="inp" id="d-status" data-field="status">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+      <div class="field"><label for="d-pri">Prioridad</label><select class="inp" id="d-pri" data-field="priority">${Object.entries(PRI).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')}</select></div>
+      <div class="field"><label for="d-due">Fecha compromiso</label><input class="inp" type="date" id="d-due" data-field="deadline"></div>
+      <div class="field"><label for="d-owner">Responsable</label><select class="inp" id="d-owner"></select></div>
+      <div class="field"><label for="d-req">Lo solicitó</label><input class="inp" id="d-req" list="reqs" data-field="requesterName"></div>
+      <div class="field"><label for="d-mail">Correo de quien solicita</label><input class="inp" type="email" id="d-mail" data-field="requesterEmail"></div>
+    </div>
+    <div class="field"><label for="d-desc">Descripción</label><textarea class="inp" id="d-desc" data-field="description" placeholder="Detalles, referencias, número de embarque…"></textarea></div>
+
+    <div class="section">
+      <h3>Seguimiento <small id="d-count"></small></h3>
+      <div class="field"><label for="d-note">Agregar avance o nota</label><textarea class="inp" id="d-note" placeholder="Ej. Se envió cotización al cliente, esperamos respuesta"></textarea></div>
+      <div class="row-btns"><button class="btn" type="button" id="d-addnote">Agregar a la bitácora</button></div>
+      <ul class="timeline" id="d-timeline"></ul>
+    </div>
+
+    <div class="section">
+      <h3>Correo de seguimiento <small>se abre en tu Outlook</small></h3>
+      <div class="field"><label for="m-tpl">Tipo de correo</label>
+        <select class="inp" id="m-tpl"><option value="avance">Avance del pendiente</option><option value="info">Pedir información</option><option value="terminado">Avisar que quedó terminado</option></select></div>
+      <div class="grid2">
+        <div class="field"><label for="m-to">Para</label><input class="inp" id="m-to" type="email"></div>
+        <div class="field"><label for="m-cc">CC</label><input class="inp" id="m-cc" placeholder="Opcional"></div>
+      </div>
+      <div class="field"><label for="m-subj">Asunto</label><input class="inp" id="m-subj"></div>
+      <div class="field"><label for="m-body">Mensaje</label><textarea class="inp" id="m-body" rows="10"></textarea></div>
+      <div class="row-btns">
+        <a class="btn primary" id="m-open" href="#">Abrir en Outlook</a>
+        <button class="btn" type="button" id="m-copy">Copiar texto</button>
+        <button class="btn" type="button" id="m-log">Ya lo envié: registrar en bitácora</button>
+      </div>
+      <p class="hint" style="margin:0">Si Outlook no se abre, usa “Copiar texto” y pégalo en un correo nuevo.</p>
+    </div>
+
+    <div class="d-foot"><span id="d-created"></span><button class="btn danger" type="button" id="d-del">Eliminar pendiente</button></div>`;
+  wireDrawer();
+}
+
+function fillMail(t, tpl){
+  const first = (t.requesterName||'').trim().split(/\s+/)[0] || '';
+  const hola = first ? `Hola ${first},` : 'Hola,';
+  const firma = myName() ? `Saludos,\n${myName()}` : 'Saludos,';
+  const fecha = t.deadline ? longDate(t.deadline) : 'por definir';
+  const lastNote = [...(t.updates||[])].reverse().find(u => u.kind === 'nota');
+  let subject, body;
+  if (tpl === 'info'){
+    subject = `Información pendiente: ${t.title}`;
+    body = `${hola}\n\nPara continuar con tu solicitud "${t.title}" necesito que me apoyes con lo siguiente:\n\n- \n\n${t.deadline ? `Con esto podré cumplir con la fecha compromiso del ${fecha}.\n\n` : ''}${firma}`;
+  } else if (tpl === 'terminado'){
+    const when = t.completedAt ? ` el ${longDate(ymd(new Date(t.completedAt)))}` : '';
+    subject = `Terminado: ${t.title}`;
+    body = `${hola}\n\nTe confirmo que tu solicitud "${t.title}" quedó terminada${when}.\n\nSi necesitas algo más, quedo a tus órdenes.\n\n${firma}`;
+  } else {
+    subject = `Seguimiento: ${t.title}`;
+    body = `${hola}\n\nTe comparto el estatus de tu solicitud "${t.title}":\n\n• Estatus: ${STATUS[t.status]||'Pendiente'}\n• Fecha compromiso: ${fecha}${lastNote ? `\n• Último avance: ${lastNote.text}` : ''}\n\nQuedo pendiente de cualquier comentario.\n\n${firma}`;
+  }
+  S.mail = {taskId: t.id, tpl, to: t.requesterEmail||'', cc: S.mail && S.mail.taskId === t.id ? S.mail.cc : '', subject, body};
+  $('#m-tpl').value = tpl; $('#m-to').value = S.mail.to; $('#m-cc').value = S.mail.cc; $('#m-subj').value = subject; $('#m-body').value = body;
+  updateMailto();
+}
+function updateMailto(){
+  const m = S.mail; if (!m) return;
+  const to = m.to.replace(/\s+/g,'');
+  const qs = [m.cc.trim() ? 'cc=' + encodeURIComponent(m.cc.replace(/\s+/g,'')) : '', 'subject=' + encodeURIComponent(m.subject), 'body=' + encodeURIComponent(m.body)].filter(Boolean).join('&');
+  $('#m-open').href = `mailto:${to}?${qs}`;
+}
+
+function wireDrawer(){
+  const dr = $('#drawer');
+  dr.querySelectorAll('[data-field]').forEach(el => {
+    el.addEventListener('change', () => {
+      const id = S.openId, field = el.dataset.field;
+      let v = el.value; if (field !== 'description') v = v.trim();
+      if (field === 'title' && !v){ el.value = byId(id).title; return; }
+      if (field === 'status') return setStatus(id, v);
+      patchTask(id, t => {
+        const val = field === 'deadline' ? (v || null) : v;
+        if ((t[field] ?? '') === (val ?? '')) return null;
+        const patch = {[field]: val}; let log = null;
+        if (field === 'priority') log = {kind:'prioridad', text:`Prioridad: ${PRI[val].l}`};
+        if (field === 'deadline') log = {kind:'fecha', text: val ? `Fecha compromiso: ${fmtDate(val)}` : 'Sin fecha compromiso'};
+        if (field === 'requesterName'){ const mail = requesters().get(val); if (mail && !t.requesterEmail) patch.requesterEmail = mail; }
+        return {patch, log};
+      });
+    });
+  });
+  $('#d-owner').addEventListener('change', e => {
+    const uid = e.target.value || null;
+    patchTask(S.openId, t => t.ownerId === uid ? null : {patch:{ownerId: uid}, log:{kind:'resp', who: uid, text:'Cambió responsable'}});
+  });
+  $('#d-addnote').addEventListener('click', () => {
+    const txt = $('#d-note').value.trim(); if (!txt) return;
+    $('#d-note').value = '';
+    patchTask(S.openId, () => ({log:{kind:'nota', text: txt}})).then(() => toast('Seguimiento agregado'));
+  });
+  $('#m-tpl').addEventListener('change', e => fillMail(byId(S.openId), e.target.value));
+  [['#m-to','to'],['#m-cc','cc'],['#m-subj','subject'],['#m-body','body']].forEach(([s,k]) => $(s).addEventListener('input', e => { S.mail[k] = e.target.value; updateMailto(); }));
+  $('#m-open').addEventListener('click', e => { if (!S.mail.to.trim()){ e.preventDefault(); toast('Escribe el correo de destino en “Para”.'); $('#m-to').focus(); } });
+  $('#m-copy').addEventListener('click', async () => {
+    const m = S.mail, txt = `Para: ${m.to}${m.cc ? `\nCC: ${m.cc}` : ''}\nAsunto: ${m.subject}\n\n${m.body}`;
+    try { await navigator.clipboard.writeText(txt); toast('Correo copiado. Pégalo en un mensaje nuevo de Outlook.'); }
+    catch { const b = $('#m-body'); b.focus(); b.select(); toast('Selecciona el texto y cópialo con Ctrl+C.'); }
+  });
+  $('#m-log').addEventListener('click', () => {
+    const m = S.mail;
+    patchTask(S.openId, () => ({log:{kind:'correo', text:`Correo enviado a ${m.to || 'solicitante'}: “${m.subject}”`}})).then(() => toast('Envío registrado en la bitácora'));
+  });
+  $('#d-del').addEventListener('click', async e => {
+    const b = e.currentTarget;
+    if (!S.deleteArmed){ S.deleteArmed = true; b.classList.add('armed'); b.textContent = 'Confirmar: eliminar para siempre'; setTimeout(() => { if (b.isConnected){ S.deleteArmed = false; b.classList.remove('armed'); b.textContent = 'Eliminar pendiente'; } }, 4000); return; }
+    const id = S.openId; closeAll();
+    const r = await sb.from('work_items').delete().eq('id', id);
+    if (r.error) return fail(r.error);
+    S.tasks = S.tasks.filter(t => t.id !== id); render(); toast('Pendiente eliminado');
+  });
+}
+
+function syncDrawer(){
+  const t = byId(S.openId);
+  if (!t){ closeAll(); return; }
+  const set = (sel, val) => { const el = $(sel); if (el && el !== document.activeElement) el.value = val ?? ''; };
+  $('#d-folio').textContent = `${folio(t)} · ${STATUS[t.status]||''}`;
+  set('#d-title', t.title); set('#d-status', t.status); set('#d-pri', PRI[t.priority] ? t.priority : 'media');
+  set('#d-due', t.deadline || ''); set('#d-req', t.requesterName); set('#d-mail', t.requesterEmail); set('#d-desc', t.description);
+  const own = $('#d-owner');
+  if (own !== document.activeElement){
+    const ids = [...new Set([...S.team, t.ownerId].filter(Boolean))].sort((a,b) => pname(a).localeCompare(pname(b),'es'));
+    own.innerHTML = `<option value="">Sin asignar</option>` + ids.map(id => `<option value="${esc(id)}">${esc(pname(id))}${id===S.uid?' (tú)':''}</option>`).join('');
+    own.value = t.ownerId || '';
+  }
+  const ups = [...(t.updates||[])].reverse();
+  const nFollow = ups.filter(u => u.kind === 'nota' || u.kind === 'correo').length;
+  $('#d-count').textContent = nFollow ? `${nFollow} registro${nFollow>1?'s':''}` : '';
+  $('#d-timeline').innerHTML = ups.map(u => `<li><time>${esc(fmtDT(u.at))}</time><div><div class="txt"><span class="kind ${esc(u.kind)}">${esc(KIND[u.kind]||'')}</span><span>${esc(u.kind === 'resp' ? (u.who ? `Ahora lo atiende ${pname(u.who)}` : 'Quedó sin responsable') : u.text)}</span></div><div class="by">${esc(pname(u.by))}</div></div></li>`).join('');
+  $('#d-created').textContent = `Registrado por ${pname(t.createdBy)} el ${t.createdAt ? fmtDT(t.createdAt) : '—'}`;
+  if (!S.mail || S.mail.taskId !== t.id){
+    fillMail(t, t.status === 'hecho' ? 'terminado' : t.status === 'espera' ? 'info' : 'avance');
+  } else if (!S.mail.to && t.requesterEmail && document.activeElement !== $('#m-to')){
+    S.mail.to = t.requesterEmail; $('#m-to').value = t.requesterEmail; updateMailto();
+  }
+}
+
+/* ---------- equipo ---------- */
+function renderTeam(){
+  const ids = [...S.team].sort((a,b) => pname(a).localeCompare(pname(b),'es'));
+  $('#t-count').textContent = `${ids.length} persona${ids.length===1?'':'s'}`;
+  $('#t-list').innerHTML = ids.map(id => {
+    const p = S.people[id] || {email:''};
+    return `<li><div><div>${esc(pname(id))}${id===S.uid?' (tú)':''}</div><div class="em">${esc(p.email)}</div></div>${id===S.uid ? '' : `<button class="btn ghost" type="button" data-rm="${esc(id)}">Quitar</button>`}</li>`;
+  }).join('');
+}
+$('#open-team').addEventListener('click', () => {
+  $('#t-myname').value = myName();
+  renderTeam(); $('#team').hidden = false; $('#scrim').hidden = false;
+});
+$('#t-savename').addEventListener('click', async () => {
+  const name = $('#t-myname').value.trim();
+  const r = await sb.from('profiles').update({full_name: name}).eq('id', S.uid);
+  if (r.error) return fail(r.error);
+  if (S.people[S.uid]) S.people[S.uid].full_name = name;
+  render(); toast('Nombre guardado');
+});
+$('#t-add').addEventListener('click', async () => {
+  const email = $('#t-email').value.trim().toLowerCase(); if (!email) return;
+  const p = Object.values(S.people).find(x => (x.email||'').toLowerCase() === email);
+  if (!p){ toast('Ese correo aún no tiene cuenta. Pídele que entre a esta página y cree su cuenta primero.'); return; }
+  if (S.team.includes(p.id)){ toast('Esa persona ya está en el equipo.'); return; }
+  const r = await sb.from('team_members').insert({user_id: p.id, added_by: S.uid});
+  if (r.error) return fail(r.error);
+  S.team.push(p.id); $('#t-email').value = ''; renderTeam(); toast('Agregado al equipo');
+});
+$('#t-list').addEventListener('click', async e => {
+  const b = e.target.closest('[data-rm]'); if (!b) return;
+  if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = '¿Quitar? Confirmar'; b.classList.add('danger'); return; }
+  const r = await sb.from('team_members').delete().eq('user_id', b.dataset.rm);
+  if (r.error) return fail(r.error);
+  S.team = S.team.filter(id => id !== b.dataset.rm); renderTeam(); toast('Quitado del equipo');
+});
+
+/* ---------- reporte Excel ---------- */
+function setPreset(k){
+  const d = new Date(), y = d.getFullYear(), m = d.getMonth();
+  let from, to = new Date(d);
+  const monday = x => { const r = new Date(x); r.setDate(r.getDate() - ((r.getDay()+6)%7)); return r; };
+  if (k === 'week') from = monday(d);
+  else if (k === 'lastweek'){ from = monday(d); from.setDate(from.getDate()-7); to = new Date(from); to.setDate(to.getDate()+6); }
+  else if (k === 'month') from = new Date(y,m,1);
+  else if (k === 'lastmonth'){ from = new Date(y,m-1,1); to = new Date(y,m,0); }
+  else from = new Date(y,0,1);
+  $('#r-from').value = ymd(from); $('#r-to').value = ymd(to); updateReportSummary();
+}
+function reportSet(){
+  const from = $('#r-from').value, to = $('#r-to').value;
+  const incOpen = $('#r-open').checked, mine = $('#r-mine').checked;
+  const inRange = iso => { if (!iso) return false; const d = ymd(new Date(iso)); return d >= from && d <= to; };
+  const base = S.tasks.filter(t => !mine || t.ownerId === S.uid);
+  const done = base.filter(t => t.status === 'hecho' && inRange(t.completedAt)).sort((a,b) => (a.completedAt||'').localeCompare(b.completedAt||''));
+  const open = incOpen ? base.filter(t => t.status !== 'hecho' && (!t.createdAt || ymd(new Date(t.createdAt)) <= to)).sort(sortOpen) : [];
+  const log = [];
+  base.forEach(t => (t.updates||[]).forEach(u => { if (inRange(u.at)) log.push({t,u}); }));
+  log.sort((a,b) => a.u.at.localeCompare(b.u.at));
+  return {from, to, done, open, log, mine};
+}
+function updateReportSummary(){
+  const from = $('#r-from').value, to = $('#r-to').value, sum = $('#r-sum');
+  if (!from || !to || from > to){ sum.textContent = 'Elige un periodo válido.'; $('#r-go').disabled = true; return; }
+  const r = reportSet();
+  sum.textContent = `${fmtDate(from)} – ${fmtDate(to)} · ${r.done.length} terminadas${$('#r-open').checked ? ` · ${r.open.length} abiertas` : ''} · ${r.log.length} movimientos en bitácora`;
+  $('#r-go').disabled = !(r.done.length || r.open.length);
+}
+$('#open-report').addEventListener('click', () => {
+  if (!$('#r-from').value) setPreset('month');
+  $('#r-msg').textContent = '';
+  $('#report').hidden = false; $('#scrim').hidden = false; updateReportSummary();
+});
+$('#presets').addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (b) setPreset(b.dataset.preset); });
+['#r-from','#r-to','#r-open','#r-mine'].forEach(s => $(s).addEventListener('change', updateReportSummary));
+
+const serial = (y,mo,d,h=0,mi=0) => (Date.UTC(y,mo-1,d,h,mi) - Date.UTC(1899,11,30)) / 86400000;
+const ymdSerial = s => { if (!s) return null; const [y,m,d] = s.split('-').map(Number); return serial(y,m,d); };
+const isoSerial = iso => { if (!iso) return null; const d = new Date(iso); return serial(d.getFullYear(), d.getMonth()+1, d.getDate(), d.getHours(), d.getMinutes()); };
+const isoDay = iso => iso ? ymd(new Date(iso)) : null;
+function makeSheet(rows, dateCols, widths){
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  for (let r = 1; r < rows.length; r++) Object.entries(dateCols).forEach(([c,fmt]) => {
+    const v = rows[r][c]; if (v == null || v === '') return;
+    ws[XLSX.utils.encode_cell({r, c:+c})] = {t:'n', v, z:fmt};
+  });
+  ws['!cols'] = widths.map(w => ({wch:w}));
+  if (rows.length > 1) ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:rows.length-1, c:rows[0].length-1}})};
+  return ws;
+}
+$('#r-go').addEventListener('click', () => {
+  const msg = $('#r-msg');
+  if (typeof XLSX === 'undefined'){ msg.textContent = 'No se pudo cargar el generador de Excel. Recarga la página.'; return; }
+  const r = reportSet();
+  const D = 'dd/mm/yyyy', DT = 'dd/mm/yyyy hh:mm';
+  const head = ['Folio','Actividad','Descripción','Solicitante','Correo solicitante','Responsable','Prioridad','Estado','Fecha de alta','Fecha compromiso','Fecha de término','Días para resolver','¿A tiempo?','Seguimientos','Último seguimiento'];
+  const rows = [head];
+  [...r.done, ...r.open].forEach(t => {
+    const ups = t.updates || [];
+    const notes = ups.filter(u => u.kind === 'nota' || u.kind === 'correo');
+    const last = notes[notes.length-1];
+    const cDay = isoDay(t.completedAt), aDay = isoDay(t.createdAt);
+    const days = cDay && aDay ? Math.round((parseYmd(cDay) - parseYmd(aDay)) / 86400000) : null;
+    const onTime = t.status !== 'hecho' ? (t.deadline && daysUntil(t.deadline) < 0 ? 'Vencido' : 'En curso') : (!t.deadline ? 'Sin fecha' : (cDay <= t.deadline ? 'Sí' : 'No'));
+    rows.push([folio(t), t.title, t.description||'', t.requesterName||'', t.requesterEmail||'', pname(t.ownerId), (PRI[t.priority]||PRI.media).l, STATUS[t.status]||'',
+      isoSerial(t.createdAt), ymdSerial(t.deadline), isoSerial(t.completedAt), days, onTime, notes.length, last ? last.text : '']);
+  });
+  const ws1 = makeSheet(rows, {8:DT, 9:D, 10:DT}, [9,40,40,22,28,22,10,20,16,14,16,10,10,12,48]);
+
+  const lrows = [['Fecha','Folio','Actividad','Solicitante','Tipo','Detalle','Registró']];
+  r.log.forEach(({t,u}) => lrows.push([isoSerial(u.at), folio(t), t.title, t.requesterName||'', KIND[u.kind]||u.kind, u.kind === 'resp' ? (u.who ? `Ahora lo atiende ${pname(u.who)}` : 'Quedó sin responsable') : u.text, pname(u.by)]));
+  const ws2 = makeSheet(lrows, {0:DT}, [16,9,40,22,14,60,22]);
+
+  const per = new Map();
+  [...r.done, ...r.open].forEach(t => {
+    const k = (t.requesterName||'').trim() || '(Sin solicitante)';
+    const o = per.get(k) || {done:0, ontime:0, late:0, open:0};
+    if (t.status === 'hecho'){ o.done++; if (t.deadline){ isoDay(t.completedAt) <= t.deadline ? o.ontime++ : o.late++; } } else o.open++;
+    per.set(k, o);
+  });
+  const srows = [
+    ['Reporte de actividades'], ['Periodo', `${fmtDate(r.from)} ${r.from.slice(0,4)} – ${fmtDate(r.to)} ${r.to.slice(0,4)}`],
+    ['Alcance', r.mine ? `Solo pendientes de ${pname(S.uid)}` : 'Todo el equipo'], ['Generado', fmtDT(nowIso())], [],
+    ['Solicitante','Terminadas','A tiempo','Con retraso','Abiertas']
+  ];
+  [...per.entries()].sort((a,b) => b[1].done - a[1].done).forEach(([k,o]) => srows.push([k, o.done, o.ontime, o.late, o.open]));
+  const tot = [...per.values()].reduce((a,o) => ({done:a.done+o.done, ontime:a.ontime+o.ontime, late:a.late+o.late, open:a.open+o.open}), {done:0,ontime:0,late:0,open:0});
+  srows.push(['Total', tot.done, tot.ontime, tot.late, tot.open]);
+  const ws3 = XLSX.utils.aoa_to_sheet(srows); ws3['!cols'] = [{wch:28},{wch:14},{wch:12},{wch:13},{wch:12}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, 'Actividades');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Bitácora');
+  XLSX.utils.book_append_sheet(wb, ws3, 'Resumen');
+  XLSX.writeFile(wb, `Actividades_${r.from}_a_${r.to}.xlsx`);
+  msg.textContent = 'Listo. Revisa tu carpeta de descargas.';
+});
+
+/* ---------- sesión ---------- */
+const aMsg = (m, ok) => { const el = $('#a-msg'); el.textContent = m; el.classList.toggle('ok', !!ok); };
+const creds = () => ({email: $('#a-email').value.trim(), password: $('#a-pass').value});
+$('#auth-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const r = await sb.auth.signInWithPassword(creds());
+  if (r.error) aMsg('Correo o contraseña incorrectos.');
+});
+$('#a-signup').addEventListener('click', async () => {
+  const c = creds();
+  if (!c.email || c.password.length < 6) return aMsg('Escribe tu correo y una contraseña de al menos 6 caracteres.');
+  const r = await sb.auth.signUp(c);
+  if (r.error) aMsg(r.error.message);
+  else aMsg('Cuenta creada. Si te llega un correo de confirmación, ábrelo y luego entra aquí.', true);
+});
+document.addEventListener('click', async e => { if (e.target.closest('[data-logout]')) await sb.auth.signOut(); });
+$('#nt-retry').addEventListener('click', async () => { const s = await sb.auth.getSession(); if (s.data.session) start(s.data.session.user); });
+
+function show(which){ ['#auth','#noteam','#app'].forEach(s => $(s).hidden = s !== which); }
+let started = null;
+async function start(user){
+  if (started === user.id && !$('#app').hidden) return;
+  S.uid = user.id; S.email = user.email || '';
+  const m = await sb.from('team_members').select('user_id').eq('user_id', user.id).maybeSingle();
+  if (!m.data){ $('#nt-email').textContent = S.email; show('#noteam'); return; }
+  started = user.id;
+  show('#app');
+  const d = new Date(); $('#today').textContent = `${DIA[d.getDay()]} ${d.getDate()} de ${MESL[d.getMonth()]} ${d.getFullYear()}`;
+  render();
+  await loadAll();
+  if (S.channel) sb.removeChannel(S.channel);
+  S.channel = sb.channel('pendientes')
+    .on('postgres_changes', {event:'*', schema:'public', table:'work_items'}, scheduleReload)
+    .on('postgres_changes', {event:'*', schema:'public', table:'work_updates'}, scheduleReload)
+    .subscribe();
+}
+function stop(){
+  started = null; S.uid = null; S.tasks = []; S.ready = false; closeAll();
+  if (S.channel){ sb.removeChannel(S.channel); S.channel = null; }
+  show('#auth');
+}
+sb.auth.onAuthStateChange((ev, session) => { if (session) start(session.user); else stop(); });
+sb.auth.getSession().then(r => { if (r.data.session) start(r.data.session.user); else show('#auth'); });
+})();
+</script>
+</body>
+</html>
