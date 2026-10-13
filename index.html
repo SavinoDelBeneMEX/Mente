@@ -3312,7 +3312,7 @@
   document.getElementById('authSignUp').addEventListener('click', async function () {
     var creds = readAuthFields();
     if (!creds) return;
-    var res = await sb.auth.signUp(creds);
+    var res = await sb.auth.signUp({ email: creds.email, password: creds.password, options: { emailRedirectTo: location.origin + '/' } });
     if (res.error) showAuthMessage(res.error.message, false);
     else showAuthMessage('Cuenta creada. Si tu proyecto pide confirmar el email, revisa tu bandeja de entrada y después inicia sesión.', true);
   });

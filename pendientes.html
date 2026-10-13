@@ -1102,7 +1102,7 @@ $('#auth-form').addEventListener('submit', async e => {
 $('#a-signup').addEventListener('click', async () => {
   const c = creds();
   if (!c.email || c.password.length < 6) return aMsg('Escribe tu correo y una contraseña de al menos 6 caracteres.');
-  const r = await sb.auth.signUp(c);
+  const r = await sb.auth.signUp({...c, options: {emailRedirectTo: location.origin + '/backbrain'}});
   if (r.error) aMsg(r.error.message);
   else aMsg('Cuenta creada. Si te llega un correo de confirmación, ábrelo y luego entra aquí.', true);
 });
