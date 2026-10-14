@@ -205,6 +205,22 @@ input[type=date].inp{font-variant-numeric:tabular-nums}
 .st.ontime{background:var(--ok-soft);color:var(--ok)}
 .st.late{background:var(--danger-soft);color:var(--danger)}
 .st.nodate{background:var(--fill);color:var(--muted)}
+/* Cobranza */
+#col{display:flex;flex-direction:column;gap:22px}
+.viewtabs button[data-view="cobranza"][aria-selected="true"] b{background:var(--accent-soft);color:var(--accent)}
+.row.colrow{grid-template-columns:30px minmax(0,1fr) 150px 180px 150px}
+.doc-badge{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:10.5px;font-weight:700;color:#fff;background:var(--c,var(--accent))}
+.amount{font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.stat b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#col-stats{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important}
+#col-stats .stat{grid-column:auto!important;grid-template-areas:"ic lb" "num num";grid-template-columns:auto 1fr}
+#col-stats .stat b{font-size:22px;justify-self:start}
+#col-stats .stat span{white-space:normal}
+@media (max-width:720px){
+  .row.colrow{grid-template-columns:30px minmax(0,1fr) auto;grid-template-areas:"tick main main" ". amt amt" ". fu st"}
+  .row.colrow .doc-badge{grid-area:tick;align-self:start}.row.colrow .row-main{grid-area:main}
+  .row.colrow .amount{grid-area:amt;text-align:left}.row.colrow .fu{grid-area:fu}.row.colrow .st{grid-area:st;justify-self:end}
+}
 .files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .files li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:.5px solid var(--line)}
 .files li:first-child{border-top:0}
@@ -381,6 +397,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
   <div class="viewtabs" role="tablist" aria-label="Ver">
     <button type="button" role="tab" data-view="open" aria-selected="true">Pendientes <b id="vt-open">–</b></button>
     <button type="button" role="tab" data-view="done" aria-selected="false">Terminados <b id="vt-done">–</b></button>
+    <button type="button" role="tab" data-view="cobranza" aria-selected="false" id="vt-col-btn" hidden>Cobranza <b id="vt-col">–</b></button>
   </div>
 
   <section class="stats" id="stats" aria-label="Resumen"></section>
@@ -400,7 +417,7 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
   <datalist id="reqs"></datalist>
   <datalist id="clients"></datalist>
 
-  <div class="toolbar">
+  <div class="toolbar" id="task-toolbar">
     <div class="seg" role="group" aria-label="Ver pendientes de">
       <button type="button" data-scope="mine" aria-pressed="true">Míos</button>
       <button type="button" data-scope="team" aria-pressed="false">Mi equipo</button>
@@ -420,6 +437,26 @@ body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px)}
   <nav class="stage-tabs" id="stage-tabs" hidden aria-label="Etapas"></nav>
 
   <main id="list"></main>
+
+  <section id="col" hidden aria-label="Cobranza">
+    <section class="stats" id="col-stats" aria-label="Resumen de cobranza"></section>
+    <form class="quick" id="col-quick" autocomplete="off">
+      <div class="field f-title"><label for="cq-client">Cliente</label><input class="inp" id="cq-client" required placeholder="Cliente al que se le cobra" list="clients"></div>
+      <div class="field"><label for="cq-type">Tipo</label><select class="inp" id="cq-type"><option value="carta">Carta de cobranza</option><option value="convenio">Convenio</option></select></div>
+      <div class="field"><label for="cq-sent">Fecha de envío</label><input class="inp" id="cq-sent" type="date"></div>
+      <div class="field"><label for="cq-amount">Adeudo</label><input class="inp" id="cq-amount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+      <div class="field"><label for="cq-cur">Moneda</label><select class="inp" id="cq-cur"><option>MXN</option><option>USD</option><option>EUR</option></select></div>
+      <div class="field"><label for="cq-mail">Mail de contacto</label><input class="inp" id="cq-mail" type="email" placeholder="contacto@cliente.com"></div>
+      <div class="field"><label for="cq-fu">Próximo seguimiento</label><input class="inp" id="cq-fu" type="date"></div>
+      <div class="field f-add"><button class="btn primary" type="submit" id="cq-add">Registrar</button></div>
+    </form>
+    <div class="toolbar">
+      <label class="searchbox"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.8" stroke="currentColor" stroke-width="1.7"/><path d="M10.6 10.6 14 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><input class="inp" id="c-q" type="search" placeholder="Buscar cliente o contacto" aria-label="Buscar cobranza"></label>
+      <select class="inp" id="c-status" aria-label="Estatus"><option value="active">Activas</option><option value="enviada">Enviada</option><option value="negociacion">En negociación</option><option value="firmado">Convenio firmado</option><option value="pagada">Pagada</option><option value="incumplida">Incumplida</option><option value="all">Todas</option></select>
+      <select class="inp" id="c-type" aria-label="Tipo"><option value="">Cartas y convenios</option><option value="carta">Cartas de cobranza</option><option value="convenio">Convenios</option></select>
+    </div>
+    <main id="col-list"></main>
+  </section>
 </div>
 
 <div class="scrim" id="scrim" hidden></div>
@@ -535,7 +572,7 @@ async function loadAll(){
     sb.from('work_items').select('*'),
     sb.from('work_updates').select('*').order('at'),
     sb.from('team_members').select('user_id'),
-    sb.from('profiles').select('id,email,full_name,daily_digest,stages_enabled,weekly_summary'),
+    sb.from('profiles').select('id,email,full_name,daily_digest,stages_enabled,weekly_summary,collections_enabled'),
     sb.from('work_files').select('*').order('created_at'),
     sb.from('team_invites').select('email,invited_at').is('accepted_at', null).order('invited_at', {ascending: false})
   ]);
@@ -550,6 +587,7 @@ async function loadAll(){
   S.team = team.data.map(r => r.user_id);
   S.people = Object.fromEntries(people.data.map(p => [p.id, p]));
   S.useStages = !!(S.people[S.uid] && S.people[S.uid].stages_enabled);
+  S.useCollections = !!(S.people[S.uid] && S.people[S.uid].collections_enabled);
   const firstLoad = !S.ready;
   S.ready = true; notice('');
   if (firstLoad){
@@ -841,11 +879,19 @@ function renderFilters(){
   document.querySelectorAll('.seg [data-scope]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.scope === S.filter.scope)));
 }
 function render(){
-  const isDone = S.view === 'done';
+  if (S.view === 'cobranza' && !S.useCollections) S.view = 'open';
+  const isDone = S.view === 'done', isCol = S.view === 'cobranza';
   document.querySelectorAll('.viewtabs [data-view]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === S.view)));
-  $('#quick').hidden = isDone; $('#f-status').hidden = isDone; $('#f-period').hidden = !isDone;
-  renderStats(); renderFilters(); renderStageTabs(); renderList();
+  $('#vt-col-btn').hidden = !S.useCollections;
+  ['#stats','#task-toolbar','#list'].forEach(s => $(s).hidden = isCol);
+  $('#col').hidden = !isCol;
+  $('#quick').hidden = isDone || isCol; $('#f-status').hidden = isDone; $('#f-period').hidden = !isDone;
+  $('#open-report').querySelector('span').innerHTML = isCol ? 'Excel<span class="lbl-long"> de cobranza</span>' : 'Excel<span class="lbl-long"> del periodo</span>';
+  renderStats(); renderFilters(); renderStageTabs();
+  if (S.useCollections) renderCol();
+  if (!isCol) renderList();
   if (S.openId) syncDrawer();
+  if (S.openColId) syncColDrawer();
   if (!$('#report').hidden) updateReportSummary();
   if (!$('#team').hidden) renderTeam();
   S.justDone = null;
@@ -925,15 +971,15 @@ function dismiss(el, after){
   el._t = setTimeout(() => { if (!el.classList.contains('open')){ el.hidden = true; after && after(); } }, SHEET_MS);
 }
 function openDrawer(id){
-  S.openId = id; S.mail = null; S.deleteArmed = false;
+  S.openColId = null; S.openId = id; S.mail = null; S.deleteArmed = false;
   ['#report','#team'].forEach(s => dismiss($(s)));
   buildDrawer(); present($('#scrim')); present($('#drawer'));
   syncDrawer();
   if (matchMedia('(min-width:721px)').matches) setTimeout(() => $('#d-title') && $('#d-title').focus({preventScroll:true}), 60);
 }
 function closeAll(){
-  S.openId = null;
-  dismiss($('#drawer'), () => { if (!S.openId) $('#drawer').innerHTML = ''; });
+  S.openId = null; S.openColId = null;
+  dismiss($('#drawer'), () => { if (!S.openId && !S.openColId) $('#drawer').innerHTML = ''; });
   ['#report','#team','#scrim'].forEach(s => dismiss($(s)));
 }
 
@@ -1283,6 +1329,7 @@ function updateReportSummary(){
   $('#r-go').disabled = !(r.done.length || r.open.length);
 }
 $('#open-report').addEventListener('click', () => {
+  if (S.view === 'cobranza'){ exportCol(); return; }
   if (S.view === 'done'){
     const p = periodRange(S.filter.period);
     $('#r-from').value = p.from; $('#r-to').value = p.to;
@@ -1485,6 +1532,7 @@ async function start(user){
   const d = new Date(); $('#today').textContent = `${DIA[d.getDay()]} ${d.getDate()} de ${MESL[d.getMonth()]} ${d.getFullYear()}`;
   render();
   await loadAll();
+  loadCol();
   if (S.channel) sb.removeChannel(S.channel);
   S.channel = sb.channel('pendientes')
     .on('postgres_changes', {event:'*', schema:'public', table:'work_items'}, scheduleReload)
@@ -1492,8 +1540,447 @@ async function start(user){
     .on('postgres_changes', {event:'*', schema:'public', table:'work_files'}, scheduleReload)
     .subscribe();
 }
+/* ---------- Cobranza (solo cuentas con collections_enabled; RLS deja ver a cada quien solo lo suyo) ---------- */
+const COL_STATUS = [['enviada','Enviada','#007aff'],['negociacion','En negociación','#ff9500'],['firmado','Convenio firmado','#af52de'],['pagada','Pagada','#34c759'],['incumplida','Incumplida','#ff3b30']];
+const COL_ST = Object.fromEntries(COL_STATUS.map(([k,l,c]) => [k, {l, c}]));
+const COL_ACTIVE = s => s !== 'pagada' && s !== 'incumplida';
+const DOC = {carta: 'Carta de cobranza', convenio: 'Convenio'};
+const CURRENCIES = ['MXN','USD','EUR'];
+const money = (n, cur) => { try { return new Intl.NumberFormat('es-MX', {style: 'currency', currency: cur || 'MXN'}).format(Number(n) || 0); } catch { return (Number(n) || 0).toFixed(2) + ' ' + (cur || ''); } };
+const plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return ymd(d); };
+const colFolio = c => '#' + String(c.id).replace(/-/g,'').slice(-5).toUpperCase();
+const COL_TEMPLATES = [['recordatorio','Recordatorio de pago'],['firma','Seguimiento a firma de convenio'],['pago_convenio','Pago conforme a convenio'],['ultimo','Último aviso']];
+Object.assign(XL.tone, {
+  Enviada: ['FFDDEBF7','FF1F4E78'], 'En negociación': ['FFFFEB9C','FF9C5700'], 'Convenio firmado': ['FFE4DFEC','FF5B2C6F'],
+  Pagada: ['FFC6EFCE','FF006100'], Incumplida: ['FFFFC7CE','FF9C0006']
+});
+S.col = {items: [], ups: {}, drafts: {}, files: {}, loaded: false, q: '', status: 'active', type: ''};
+S.openColId = null; S.colDraft = null;
+
+const colById = id => S.col.items.find(c => c.id === id);
+const groupBy = rows => { const m = {}; rows.forEach(x => (m[x.collection_id] = m[x.collection_id] || []).push(x)); return m; };
+async function loadCol(){
+  if (!S.useCollections) return;
+  const [c, u, d, f] = await Promise.all([
+    sb.from('collections').select('*'),
+    sb.from('collection_updates').select('*').order('at'),
+    sb.from('collection_drafts').select('*').order('created_at'),
+    sb.from('collection_files').select('*').order('created_at')
+  ]);
+  const err = c.error || u.error || d.error || f.error;
+  if (err){ console.error(err); toast('No se pudo cargar Cobranza. Recarga la página.'); return; }
+  S.col.items = c.data; S.col.ups = groupBy(u.data); S.col.drafts = groupBy(d.data); S.col.files = groupBy(f.data);
+  S.col.loaded = true;
+  render();
+}
+
+function fuInfo(c){
+  if (!COL_ACTIVE(c.status)) return {cls: 'done', label: COL_ST[c.status].l};
+  if (!c.next_follow_up) return {cls: 'none', label: 'Sin seguimiento'};
+  const n = daysUntil(c.next_follow_up);
+  if (n < 0) return {cls: 'late', label: 'Seguimiento atrasado ' + (-n) + ' d'};
+  if (n === 0) return {cls: 'today', label: 'Seguimiento hoy'};
+  if (n === 1) return {cls: 'soon', label: 'Seguimiento mañana'};
+  return {cls: 'later', label: 'Seguimiento ' + fmtDate(c.next_follow_up)};
+}
+function fuGroup(c){
+  if (!c.next_follow_up) return 'nodate';
+  const n = daysUntil(c.next_follow_up);
+  return n < 0 ? 'late' : n === 0 ? 'now' : n <= 7 ? 'week' : 'later';
+}
+const FU_GROUPS = [['late','Seguimiento atrasado'],['now','Seguimiento hoy'],['week','Próximos 7 días'],['later','Más adelante'],['nodate','Sin fecha de seguimiento']];
+function colVisible(){
+  const q = S.col.q.trim().toLowerCase();
+  return S.col.items.filter(c => {
+    if (S.col.status === 'active' ? !COL_ACTIVE(c.status) : (S.col.status !== 'all' && c.status !== S.col.status)) return false;
+    if (S.col.type && c.doc_type !== S.col.type) return false;
+    if (q && !`${c.client} ${c.contact_email} ${c.notes}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function colRow(c){
+  const fu = fuInfo(c), st = COL_ST[c.status] || COL_ST.enviada;
+  const nUp = (S.col.ups[c.id] || []).filter(u => u.kind === 'nota' || u.kind === 'correo').length;
+  const nFiles = (S.col.files[c.id] || []).length;
+  const meta = [
+    '<span class="client">' + esc(DOC[c.doc_type] || '') + '</span>',
+    c.sent_date ? '<span><span class="k">Enviado</span> ' + esc(fmtDate(c.sent_date)) + '</span>' : '',
+    c.doc_type === 'convenio' && c.signed_date ? '<span><span class="k">Firmado</span> ' + esc(fmtDate(c.signed_date)) + '</span>' : '',
+    c.contact_email ? '<span>' + esc(c.contact_email) + '</span>' : '',
+    nUp ? '<span>' + nUp + ' seguimiento' + (nUp > 1 ? 's' : '') + '</span>' : '',
+    nFiles ? '<span>' + nFiles + ' archivo' + (nFiles > 1 ? 's' : '') + '</span>' : ''
+  ].filter(Boolean).join('');
+  return '<li class="row colrow" data-colid="' + esc(c.id) + '">' +
+    '<span class="doc-badge" style="--c:' + (c.doc_type === 'convenio' ? '#af52de' : '#007aff') + '" aria-hidden="true">' + (c.doc_type === 'convenio' ? 'CV' : 'CC') + '</span>' +
+    '<button class="row-main" type="button" data-act="col-open"><span class="row-title">' + esc(c.client) + '</span><span class="row-meta">' + meta + '</span></button>' +
+    '<span class="amount">' + esc(money(c.amount, c.currency)) + '</span>' +
+    '<span class="due ' + fu.cls + ' fu">' + esc(fu.label) + '</span>' +
+    '<span class="st" style="background:color-mix(in srgb,' + st.c + ' 16%,transparent);color:' + st.c + '">' + esc(st.l) + '</span></li>';
+}
+function renderCol(){
+  const items = S.col.items, active = items.filter(c => COL_ACTIVE(c.status));
+  $('#vt-col').textContent = S.col.loaded ? active.length : '–';
+  // tarjetas: por cobrar por moneda, activos, seguimientos para hoy o atrasados
+  const owed = {}; active.forEach(c => owed[c.currency] = (owed[c.currency] || 0) + Number(c.amount || 0));
+  const curs = CURRENCIES.filter(k => owed[k]);
+  const due = active.filter(c => c.next_follow_up && daysUntil(c.next_follow_up) <= 0).length;
+  const ic = '<i aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v11M10.8 5c-.5-1-1.6-1.5-2.8-1.5-1.6 0-2.8.8-2.8 2.1 0 3 5.8 1.6 5.8 4.6 0 1.4-1.3 2.3-3 2.3-1.4 0-2.6-.6-3.1-1.7"/></svg></i>';
+  const tiles = (curs.length ? curs : ['MXN']).map(k => ['', 'Por cobrar ' + k, money(owed[k] || 0, k)]);
+  tiles.push(['', 'Expedientes activos', active.length], [due ? 'late' : 'ok', 'Seguimiento hoy o atrasado', due]);
+  $('#col-stats').innerHTML = tiles.map(([cls, l, n]) => '<div class="stat ' + cls + '">' + ic + '<b>' + (S.col.loaded ? esc(String(n)) : '–') + '</b><span>' + esc(l) + '</span></div>').join('');
+  // lista
+  const el = $('#col-list');
+  if (!S.col.loaded){ el.innerHTML = '<div class="empty"><strong>Cargando cobranza…</strong>Un momento.</div>'; return; }
+  if (!items.length){ el.innerHTML = '<div class="empty"><strong>Aún no hay cobranzas</strong>Registra la primera arriba: cliente, si es carta o convenio, la fecha de envío y el adeudo.</div>'; return; }
+  const list = colVisible();
+  if (!list.length){ el.innerHTML = '<div class="empty"><strong>Nada con estos filtros</strong>Cambia el estatus, el tipo o la búsqueda.</div>'; return; }
+  let html = '';
+  if (S.col.status === 'active'){
+    FU_GROUPS.forEach(([k, label]) => {
+      const g = list.filter(c => fuGroup(c) === k).sort((a,b) => (a.next_follow_up || '9').localeCompare(b.next_follow_up || '9') || Number(b.amount) - Number(a.amount));
+      if (g.length) html += '<section class="group ' + k + '"><div class="group-h"><h2>' + label + '</h2><span class="n">' + g.length + '</span></div><ul class="rows">' + g.map(colRow).join('') + '</ul></section>';
+    });
+  } else {
+    COL_STATUS.forEach(([k, label]) => {
+      const g = list.filter(c => c.status === k).sort((a,b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+      if (g.length) html += '<section class="group"><div class="group-h"><h2 style="color:' + COL_ST[k].c + '">' + label + '</h2><span class="n">' + g.length + '</span></div><ul class="rows">' + g.map(colRow).join('') + '</ul></section>';
+    });
+  }
+  el.innerHTML = html;
+}
+
+/* alta rápida */
+$('#cq-sent').value = todayStr(); $('#cq-fu').value = plusDays(7);
+$('#col-quick').addEventListener('submit', async e => {
+  e.preventDefault();
+  const client = $('#cq-client').value.trim(); if (!client) return;
+  const btn = $('#cq-add'); btn.disabled = true;
+  try {
+    const ins = await sb.from('collections').insert({
+      owner_id: S.uid, client, contact_email: $('#cq-mail').value.trim(), doc_type: $('#cq-type').value,
+      sent_date: $('#cq-sent').value || null, amount: Number($('#cq-amount').value) || 0, currency: $('#cq-cur').value,
+      next_follow_up: $('#cq-fu').value || null, status: 'enviada'
+    }).select().single();
+    if (ins.error) return fail(ins.error);
+    const up = await sb.from('collection_updates').insert({collection_id: ins.data.id, by: S.uid, kind: 'alta', text: (DOC[ins.data.doc_type] || 'Cobranza') + ' registrada'}).select().single();
+    S.col.items.push(ins.data);
+    if (up.data) S.col.ups[ins.data.id] = [up.data];
+    ['#cq-client','#cq-mail','#cq-amount'].forEach(s => $(s).value = '');
+    $('#cq-sent').value = todayStr(); $('#cq-fu').value = plusDays(7);
+    render(); $('#cq-client').focus(); toast('Cobranza registrada');
+  } finally { btn.disabled = false; }
+});
+$('#c-q').addEventListener('input', e => { S.col.q = e.target.value; render(); });
+$('#c-status').addEventListener('change', e => { S.col.status = e.target.value; render(); });
+$('#c-type').addEventListener('change', e => { S.col.type = e.target.value; render(); });
+$('#col-list').addEventListener('click', e => {
+  const row = e.target.closest('[data-colid]'); if (row && e.target.closest('[data-act="col-open"]')) openColDrawer(row.dataset.colid);
+});
+
+/* guardar cambios */
+function patchCol(id, patch, log){
+  const run = async () => {
+    const c = colById(id); if (!c) return;
+    Object.assign(c, patch); c.updated_at = nowIso();
+    if (log) (S.col.ups[id] = S.col.ups[id] || []).push({collection_id: id, at: nowIso(), by: S.uid, kind: log.kind, text: log.text});
+    render();
+    if (Object.keys(patch).length){
+      const r = await sb.from('collections').update({...patch, updated_at: nowIso()}).eq('id', id);
+      if (r.error) return fail(r.error);
+    }
+    if (log){ const r2 = await sb.from('collection_updates').insert({collection_id: id, by: S.uid, kind: log.kind, text: log.text}); if (r2.error) fail(r2.error); }
+  };
+  S.queue['c' + id] = (S.queue['c' + id] || Promise.resolve()).then(run);
+  return S.queue['c' + id];
+}
+
+/* borradores de seguimiento */
+function colTemplate(c, key){
+  const amt = money(c.amount, c.currency);
+  const docName = c.doc_type === 'convenio' ? 'propuesta de convenio' : 'carta de cobranza';
+  const sent = c.sent_date ? ' el ' + longDate(c.sent_date) : '';
+  const firma = myName() ? 'Saludos cordiales,\n' + myName() : 'Saludos cordiales,';
+  if (key === 'firma') return {
+    subject: 'Convenio de pago pendiente de firma – ' + c.client,
+    body: 'Buen día,\n\nDamos seguimiento al convenio enviado' + sent + ' para regularizar el adeudo por ' + amt + '.\n\nLe agradeceremos revisarlo y, de estar conforme, devolvérnoslo firmado. Si tiene comentarios sobre los términos, con gusto los revisamos.\n\nQuedamos atentos.\n\n' + firma };
+  if (key === 'pago_convenio') return {
+    subject: 'Pago conforme a convenio – ' + c.client,
+    body: 'Buen día,\n\nConforme al convenio firmado' + (c.signed_date ? ' el ' + longDate(c.signed_date) : '') + ', le recordamos el pago pendiente por ' + amt + '.\n\nLe agradeceremos enviarnos el comprobante una vez realizado.\n\n' + firma };
+  if (key === 'ultimo') return {
+    subject: 'Último aviso de cobranza – ' + c.client,
+    body: 'Buen día,\n\nA la fecha no hemos recibido respuesta a nuestras comunicaciones anteriores respecto del adeudo por ' + amt + '.\n\nLe solicitamos regularizar el pago o enviarnos una propuesta formal a más tardar el ' + longDate(plusDays(5)) + '. De lo contrario, daremos seguimiento al asunto por la vía legal que corresponda.\n\n' + firma };
+  return {
+    subject: 'Seguimiento al adeudo pendiente – ' + c.client,
+    body: 'Buen día,\n\nPor medio del presente damos seguimiento a la ' + docName + ' enviada' + sent + ' respecto del adeudo pendiente por ' + amt + '.\n\nLe agradeceremos confirmarnos la fecha en que se realizará el pago o, en su caso, compartirnos el comprobante si ya fue efectuado.\n\nQuedamos atentos a sus comentarios.\n\n' + firma };
+}
+const defaultTpl = c => c.doc_type === 'convenio' ? (c.status === 'firmado' ? 'pago_convenio' : 'firma') : 'recordatorio';
+function draftMailto(c, d){
+  return 'mailto:' + (c.contact_email || '').replace(/\s+/g,'') + '?subject=' + encodeURIComponent(d.subject) + '&body=' + encodeURIComponent(d.body);
+}
+
+/* panel de detalle de cobranza */
+function openColDrawer(id){
+  S.openId = null; S.openColId = id; S.colDraft = null; S.deleteArmed = false;
+  buildColDrawer(); present($('#scrim')); present($('#drawer'));
+  syncColDrawer();
+}
+function buildColDrawer(){
+  const opt = (pairs) => pairs.map(([k,l]) => '<option value="' + k + '">' + l + '</option>').join('');
+  $('#drawer').innerHTML = `
+    <div class="grabber" aria-hidden="true"></div>
+    <div class="d-head"><span class="folio" id="cd-folio"></span><button class="btn closex" type="button" data-close aria-label="Cerrar"><svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button></div>
+    <textarea class="d-title" id="cd-client" rows="1" data-cf="client" aria-label="Cliente"></textarea>
+    <div class="grid2">
+      <div class="field"><label for="cd-status">Estatus</label><select class="inp" id="cd-status" data-cf="status">${opt(COL_STATUS)}</select></div>
+      <div class="field"><label for="cd-type">Tipo</label><select class="inp" id="cd-type" data-cf="doc_type">${opt(Object.entries(DOC))}</select></div>
+      <div class="field"><label for="cd-amount">Adeudo</label><input class="inp" id="cd-amount" type="number" min="0" step="0.01" inputmode="decimal" data-cf="amount"></div>
+      <div class="field"><label for="cd-cur">Moneda</label><select class="inp" id="cd-cur" data-cf="currency">${opt(CURRENCIES.map(k => [k,k]))}</select></div>
+      <div class="field"><label for="cd-sent">Fecha de envío</label><input class="inp" id="cd-sent" type="date" data-cf="sent_date"></div>
+      <div class="field"><label for="cd-signed">Fecha de firma del convenio</label><input class="inp" id="cd-signed" type="date" data-cf="signed_date"></div>
+      <div class="field"><label for="cd-mail">Mail de contacto</label><input class="inp" id="cd-mail" type="email" data-cf="contact_email"></div>
+      <div class="field"><label for="cd-fu">Próximo seguimiento</label><input class="inp" id="cd-fu" type="date" data-cf="next_follow_up">
+        <div class="presets"><button type="button" class="chip" data-fu="3">+3 días</button><button type="button" class="chip" data-fu="7">+7 días</button><button type="button" class="chip" data-fu="15">+15 días</button></div></div>
+    </div>
+    <div class="field"><label for="cd-notes">Notas</label><textarea class="inp" id="cd-notes" data-cf="notes" placeholder="Facturas, acuerdos, condiciones de pago…"></textarea></div>
+
+    <div class="section">
+      <h3>Borradores de seguimiento <small id="cd-dcount"></small></h3>
+      <div class="inline"><select class="inp" id="cd-tpl" aria-label="Tipo de correo">${opt(COL_TEMPLATES)}</select><button class="btn" type="button" id="cd-newdraft">Crear borrador</button></div>
+      <ul class="files" id="cd-drafts"></ul>
+      <div id="cd-editor" hidden>
+        <div class="field"><label for="cd-dsubj">Asunto</label><input class="inp" id="cd-dsubj"></div>
+        <div class="field"><label for="cd-dbody">Mensaje</label><textarea class="inp" id="cd-dbody" rows="10"></textarea></div>
+        <div class="row-btns">
+          <a class="btn primary" id="cd-open" href="#">Abrir en Outlook</a>
+          <button class="btn" type="button" id="cd-copy">Copiar texto</button>
+          <button class="btn" type="button" id="cd-sentbtn">Ya lo envié</button>
+          <button class="btn ghost" type="button" id="cd-ddel">Eliminar borrador</button>
+        </div>
+        <p class="hint" style="margin:0" id="cd-dhint"></p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Seguimiento <small id="cd-count"></small></h3>
+      <div class="field"><label for="cd-note">Agregar nota</label><textarea class="inp" id="cd-note" placeholder="Ej. Llamé al contacto, promete pago el viernes"></textarea></div>
+      <div class="row-btns"><button class="btn" type="button" id="cd-addnote">Agregar al historial</button></div>
+      <ul class="timeline" id="cd-timeline"></ul>
+    </div>
+
+    <div class="section">
+      <h3>Archivos <small id="cd-fcount"></small></h3>
+      <ul class="files" id="cd-files"></ul>
+      <div class="row-btns"><label class="btn upload">Adjuntar archivos<input type="file" id="cd-upload" multiple></label><span class="hint">Carta, convenio firmado, comprobantes. Solo tú los ves.</span></div>
+    </div>
+
+    <div class="d-foot"><span id="cd-created"></span><button class="btn danger" type="button" id="cd-del">Eliminar expediente</button></div>`;
+  wireColDrawer();
+}
+function syncColDrawer(){
+  const c = colById(S.openColId);
+  if (!c){ closeAll(); return; }
+  const set = (sel, val) => { const el = $(sel); if (el && el !== document.activeElement) el.value = val ?? ''; };
+  $('#cd-folio').textContent = 'Cobranza ' + colFolio(c) + ' · ' + (COL_ST[c.status] || COL_ST.enviada).l;
+  set('#cd-client', c.client); set('#cd-status', c.status); set('#cd-type', c.doc_type); set('#cd-amount', c.amount);
+  set('#cd-cur', c.currency); set('#cd-sent', c.sent_date || ''); set('#cd-signed', c.signed_date || ''); set('#cd-mail', c.contact_email);
+  set('#cd-fu', c.next_follow_up || ''); set('#cd-notes', c.notes);
+  if (document.activeElement !== $('#cd-tpl') && !S.colTplTouched) $('#cd-tpl').value = defaultTpl(c);
+  // borradores
+  const drafts = (S.col.drafts[c.id] || []).slice().reverse();
+  $('#cd-dcount').textContent = drafts.length ? drafts.length + ' borrador' + (drafts.length > 1 ? 'es' : '') : '';
+  $('#cd-drafts').innerHTML = drafts.map(d => '<li><span class="fi" style="background:' + (d.sent_at ? 'var(--ok-soft);color:var(--ok)' : 'var(--accent-soft)') + '">' + (d.sent_at ? '✓' : '✎') + '</span><span class="fn"><b>' + esc(d.subject || '(sin asunto)') + '</b><span>' + (d.sent_at ? 'Enviado ' + esc(fmtDT(d.sent_at)) : 'Borrador · ' + esc(fmtDT(d.updated_at || d.created_at))) + '</span></span><button class="btn ghost" type="button" data-draft="' + esc(d.id) + '">' + (S.colDraft === d.id ? 'Abierto' : 'Abrir') + '</button></li>').join('');
+  const cur = drafts.find(d => d.id === S.colDraft);
+  $('#cd-editor').hidden = !cur;
+  if (cur){
+    set('#cd-dsubj', cur.subject); set('#cd-dbody', cur.body);
+    $('#cd-open').href = draftMailto(c, {subject: $('#cd-dsubj').value, body: $('#cd-dbody').value});
+    $('#cd-dhint').textContent = c.contact_email ? 'Se abre en Outlook dirigido a ' + c.contact_email + '. Si no se abre, usa Copiar texto.' : 'Escribe el mail de contacto arriba para que el correo salga dirigido.';
+  }
+  // historial
+  const ups = (S.col.ups[c.id] || []).slice().reverse();
+  const nFollow = ups.filter(u => u.kind === 'nota' || u.kind === 'correo').length;
+  $('#cd-count').textContent = nFollow ? nFollow + ' registro' + (nFollow > 1 ? 's' : '') : '';
+  $('#cd-timeline').innerHTML = ups.map(u => '<li><time>' + esc(fmtDT(u.at)) + '</time><div><div class="txt"><span class="kind ' + esc(u.kind) + '">' + esc(KIND[u.kind] || (u.kind === 'estatus' ? 'Estatus' : '')) + '</span><span>' + esc(u.text) + '</span></div><div class="by">' + esc(pname(u.by)) + '</div></div></li>').join('');
+  // archivos
+  const files = S.col.files[c.id] || [];
+  $('#cd-fcount').textContent = files.length ? files.length + ' archivo' + (files.length > 1 ? 's' : '') : '';
+  $('#cd-files').innerHTML = files.length ? files.map(x => '<li><span class="fi">' + esc((x.name.split('.').pop() || '').slice(0,4)) + '</span><span class="fn"><b>' + esc(x.name) + '</b><span>' + esc(fmtSize(x.size || 0)) + ' · ' + esc(fmtDT(x.created_at)) + '</span></span><button class="btn ghost" type="button" data-dl="' + esc(x.id) + '">Descargar</button><button class="btn ghost" type="button" data-fdel="' + esc(x.id) + '">Quitar</button></li>').join('') : '<li class="hint">Sin archivos todavía.</li>';
+  $('#cd-created').textContent = 'Registrada el ' + (c.created_at ? fmtDT(c.created_at) : '—');
+}
+function wireColDrawer(){
+  S.colTplTouched = false;
+  $('#drawer').querySelectorAll('[data-cf]').forEach(el => el.addEventListener('change', () => {
+    const id = S.openColId, c = colById(id), f = el.dataset.cf;
+    let v = el.value; if (f !== 'notes') v = v.trim();
+    if (f === 'client' && !v){ el.value = c.client; return; }
+    if (['sent_date','signed_date','next_follow_up'].includes(f)) v = v || null;
+    if (f === 'amount') v = Number(v) || 0;
+    if ((c[f] ?? '') === (v ?? '') || (f === 'amount' && Number(c[f]) === v)) return;
+    const patch = {[f]: v}; let log = null;
+    if (f === 'status'){
+      log = {kind: 'estatus', text: 'Estatus: ' + COL_ST[v].l};
+      if (v === 'firmado' && !c.signed_date) patch.signed_date = todayStr();
+      if (!COL_ACTIVE(v)) patch.next_follow_up = null;
+    }
+    if (f === 'amount' || f === 'currency') log = {kind: 'nota', text: 'Adeudo: ' + money(f === 'amount' ? v : c.amount, f === 'currency' ? v : c.currency)};
+    if (f === 'next_follow_up') log = {kind: 'fecha', text: v ? 'Próximo seguimiento: ' + fmtDate(v) : 'Sin fecha de seguimiento'};
+    if (f === 'signed_date' && v) log = {kind: 'fecha', text: 'Convenio firmado el ' + fmtDate(v)};
+    patchCol(id, patch, log);
+  }));
+  $('#drawer').querySelectorAll('[data-fu]').forEach(b => b.addEventListener('click', () => {
+    const v = plusDays(Number(b.dataset.fu));
+    patchCol(S.openColId, {next_follow_up: v}, {kind: 'fecha', text: 'Próximo seguimiento: ' + fmtDate(v)});
+  }));
+  $('#cd-tpl').addEventListener('change', () => { S.colTplTouched = true; });
+  $('#cd-addnote').addEventListener('click', () => {
+    const txt = $('#cd-note').value.trim(); if (!txt) return;
+    $('#cd-note').value = '';
+    patchCol(S.openColId, {}, {kind: 'nota', text: txt}).then(() => toast('Seguimiento agregado'));
+  });
+  // borradores
+  $('#cd-newdraft').addEventListener('click', async () => {
+    const c = colById(S.openColId), key = $('#cd-tpl').value, t = colTemplate(c, key);
+    const ins = await sb.from('collection_drafts').insert({collection_id: c.id, template: key, subject: t.subject, body: t.body}).select().single();
+    if (ins.error) return fail(ins.error);
+    (S.col.drafts[c.id] = S.col.drafts[c.id] || []).push(ins.data);
+    S.colDraft = ins.data.id; syncColDrawer(); render();
+    $('#cd-dbody').focus(); toast('Borrador creado; edítalo antes de enviarlo');
+  });
+  $('#cd-drafts').addEventListener('click', e => {
+    const b = e.target.closest('[data-draft]'); if (!b) return;
+    S.colDraft = S.colDraft === b.dataset.draft ? null : b.dataset.draft; syncColDrawer();
+  });
+  const curDraft = () => (S.col.drafts[S.openColId] || []).find(d => d.id === S.colDraft);
+  let saveT;
+  const saveDraft = async () => {
+    const d = curDraft(); if (!d) return;
+    const patch = {subject: $('#cd-dsubj').value, body: $('#cd-dbody').value, updated_at: nowIso()};
+    Object.assign(d, patch);
+    const r = await sb.from('collection_drafts').update(patch).eq('id', d.id);
+    if (r.error) fail(r.error);
+  };
+  ['#cd-dsubj','#cd-dbody'].forEach(s => $(s).addEventListener('input', () => {
+    const c = colById(S.openColId);
+    $('#cd-open').href = draftMailto(c, {subject: $('#cd-dsubj').value, body: $('#cd-dbody').value});
+    clearTimeout(saveT); saveT = setTimeout(saveDraft, 700);
+  }));
+  $('#cd-open').addEventListener('click', e => {
+    const c = colById(S.openColId);
+    if (!c.contact_email){ e.preventDefault(); toast('Escribe el mail de contacto arriba.'); $('#cd-mail').focus(); }
+  });
+  $('#cd-copy').addEventListener('click', async () => {
+    const c = colById(S.openColId), txt = 'Para: ' + (c.contact_email || '') + '\nAsunto: ' + $('#cd-dsubj').value + '\n\n' + $('#cd-dbody').value;
+    try { await navigator.clipboard.writeText(txt); toast('Correo copiado. Pégalo en un mensaje nuevo de Outlook.'); }
+    catch { const b = $('#cd-dbody'); b.focus(); b.select(); toast('Selecciona el texto y cópialo con Ctrl+C.'); }
+  });
+  $('#cd-sentbtn').addEventListener('click', async () => {
+    clearTimeout(saveT); await saveDraft();
+    const d = curDraft(); if (!d) return;
+    const at = nowIso();
+    const r = await sb.from('collection_drafts').update({sent_at: at}).eq('id', d.id);
+    if (r.error) return fail(r.error);
+    d.sent_at = at;
+    const c = colById(S.openColId);
+    const next = COL_ACTIVE(c.status) ? plusDays(7) : null;
+    await patchCol(c.id, next ? {next_follow_up: next} : {}, {kind: 'correo', text: 'Correo enviado' + (c.contact_email ? ' a ' + c.contact_email : '') + ': “' + d.subject + '”'});
+    S.colDraft = null; syncColDrawer();
+    toast(next ? 'Registrado. Próximo seguimiento: ' + fmtDate(next) : 'Envío registrado');
+  });
+  $('#cd-ddel').addEventListener('click', async e => {
+    const b = e.currentTarget, d = curDraft(); if (!d) return;
+    if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = '¿Eliminar? Confirmar'; b.classList.add('danger'); return; }
+    const r = await sb.from('collection_drafts').delete().eq('id', d.id);
+    if (r.error) return fail(r.error);
+    S.col.drafts[S.openColId] = (S.col.drafts[S.openColId] || []).filter(x => x.id !== d.id);
+    S.colDraft = null; syncColDrawer(); toast('Borrador eliminado');
+  });
+  // archivos (carpeta privada <user_id>/<expediente>/)
+  $('#cd-upload').addEventListener('change', async e => {
+    const id = S.openColId, picked = [...e.target.files]; e.target.value = '';
+    for (const file of picked){
+      if (file.size > MAX_FILE){ toast(file.name + ' pesa más de 25 MB'); continue; }
+      const safe = file.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.\-]+/g, '_').slice(-120);
+      const path = S.uid + '/' + id + '/' + crypto.randomUUID() + '-' + safe;
+      toast('Subiendo ' + file.name + '…');
+      const up = await sb.storage.from('collection-files').upload(path, file, {contentType: file.type || 'application/octet-stream'});
+      if (up.error){ fail(up.error); continue; }
+      const ins = await sb.from('collection_files').insert({collection_id: id, path, name: file.name, size: file.size}).select().single();
+      if (ins.error){ await sb.storage.from('collection-files').remove([path]); fail(ins.error); continue; }
+      (S.col.files[id] = S.col.files[id] || []).push(ins.data);
+      await patchCol(id, {}, {kind: 'archivo', text: 'Adjuntó ' + file.name});
+      toast('Archivo adjuntado');
+    }
+  });
+  $('#cd-files').addEventListener('click', async e => {
+    const dl = e.target.closest('[data-dl]'), del = e.target.closest('[data-fdel]');
+    const list = S.col.files[S.openColId] || [];
+    if (dl){
+      const x = list.find(y => y.id === dl.dataset.dl); if (!x) return;
+      const r = await sb.storage.from('collection-files').createSignedUrl(x.path, 120, {download: x.name});
+      if (r.error) return fail(r.error);
+      const a = document.createElement('a'); a.href = r.data.signedUrl; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
+      return;
+    }
+    if (!del) return;
+    if (del.dataset.armed !== '1'){ del.dataset.armed = '1'; del.textContent = '¿Quitar? Confirmar'; del.classList.add('danger'); return; }
+    const x = list.find(y => y.id === del.dataset.fdel); if (!x) return;
+    const r1 = await sb.from('collection_files').delete().eq('id', x.id);
+    if (r1.error) return fail(r1.error);
+    await sb.storage.from('collection-files').remove([x.path]);
+    S.col.files[S.openColId] = list.filter(y => y.id !== x.id);
+    await patchCol(S.openColId, {}, {kind: 'archivo', text: 'Quitó ' + x.name});
+    toast('Archivo quitado');
+  });
+  $('#cd-del').addEventListener('click', async e => {
+    const b = e.currentTarget;
+    if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.classList.add('armed'); b.textContent = 'Confirmar: eliminar para siempre'; setTimeout(() => { if (b.isConnected){ b.dataset.armed = ''; b.classList.remove('armed'); b.textContent = 'Eliminar expediente'; } }, 4000); return; }
+    const id = S.openColId;
+    const paths = (S.col.files[id] || []).map(x => x.path);
+    closeAll();
+    const r = await sb.from('collections').delete().eq('id', id);
+    if (r.error) return fail(r.error);
+    if (paths.length) await sb.storage.from('collection-files').remove(paths);
+    S.col.items = S.col.items.filter(c => c.id !== id); render(); toast('Expediente eliminado');
+  });
+}
+
+/* Excel de cobranza, con el mismo formato que el de actividades */
+async function exportCol(){
+  if (typeof ExcelJS === 'undefined'){ toast('No se pudo cargar el generador de Excel. Recarga la página.'); return; }
+  const list = colVisible().slice().sort((a,b) => a.client.localeCompare(b.client,'es'));
+  if (!list.length){ toast('No hay expedientes con estos filtros.'); return; }
+  const wb = new ExcelJS.Workbook(); wb.creator = 'Backbrain';
+  const cols = [
+    {h:'Folio', w:10, center:true, bold:true}, {h:'Cliente', w:30}, {h:'Tipo', w:17, center:true}, {h:'Estatus', w:16, center:true, tone:true},
+    {h:'Mail de contacto', w:28}, {h:'Fecha de envío', w:13.3, center:true, fmt:XL.D}, {h:'Fecha de firma del convenio', w:15, center:true, fmt:XL.D},
+    {h:'Adeudo', w:15, fmt:'#,##0.00'}, {h:'Moneda', w:8, center:true}, {h:'Próximo seguimiento', w:14, center:true, fmt:XL.D},
+    {h:'Seguimientos', w:11.7, center:true}, {h:'Último seguimiento', w:40}, {h:'Notas', w:34}
+  ];
+  const rows = list.map(c => {
+    const notes = (S.col.ups[c.id] || []).filter(u => u.kind === 'nota' || u.kind === 'correo');
+    const last = notes[notes.length-1];
+    return [colFolio(c), c.client, DOC[c.doc_type] || '', (COL_ST[c.status] || COL_ST.enviada).l, c.contact_email || '',
+      xlYmd(c.sent_date), xlYmd(c.signed_date), Number(c.amount) || 0, c.currency, xlYmd(c.next_follow_up), notes.length, last ? last.text : '', c.notes || ''];
+  });
+  xlTable(wb, 'Cobranza', cols, rows, 40);
+  const tot = CURRENCIES.map(k => {
+    const xs = list.filter(c => c.currency === k);
+    const sum = st => xs.filter(st).reduce((a,c) => a + Number(c.amount || 0), 0);
+    return [k, xs.filter(c => COL_ACTIVE(c.status)).length, sum(c => COL_ACTIVE(c.status)), sum(c => c.status === 'pagada'), sum(c => c.status === 'incumplida')];
+  }).filter(r => r[1] || r[2] || r[3] || r[4]);
+  xlTable(wb, 'Totales', [{h:'Moneda', w:10, center:true, bold:true}, {h:'Expedientes activos', w:14, center:true}, {h:'Por cobrar', w:16, fmt:'#,##0.00'}, {h:'Pagado', w:16, fmt:'#,##0.00'}, {h:'Incumplido', w:16, fmt:'#,##0.00'}], tot, 32);
+  try {
+    const buf = await wb.xlsx.writeBuffer();
+    const url = URL.createObjectURL(new Blob([buf], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    const a = document.createElement('a'); a.href = url; a.download = 'Cobranza_' + todayStr() + '.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast('Excel de cobranza descargado');
+  } catch (e){ console.error(e); toast('No se pudo generar el archivo.'); }
+}
+
 function stop(){
-  started = null; S.uid = null; S.tasks = []; S.ready = false; closeAll();
+  started = null; S.uid = null; S.tasks = []; S.ready = false; S.col.items = []; S.col.loaded = false; closeAll();
   if (S.channel){ sb.removeChannel(S.channel); S.channel = null; }
   show('#auth');
 }

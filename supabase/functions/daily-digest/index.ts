@@ -33,6 +33,8 @@ type Item = {
   priority: string; status: string; owner_id: string | null;
   stage: string | null; stage_changed_at: string | null; completed_at?: string | null;
 };
+const DOC: Record<string, string> = { carta: "Carta de cobranza", convenio: "Convenio" };
+const money = (n: number, cur: string) => { try { return new Intl.NumberFormat("es-MX", { style: "currency", currency: cur || "MXN" }).format(Number(n) || 0); } catch { return `${n} ${cur}`; } };
 const STAGE: Record<string, string> = { inicio: "Por iniciar", revision: "Revisión", firma: "Firma", cliente: "Enviado al cliente", proveedor: "Enviado a proveedor" };
 // Días en una misma etapa a partir de los cuales el pendiente se marca como atorado (igual que en pendientes.html)
 const STUCK_DAYS: Record<string, number> = { inicio: 7, revision: 3, firma: 3, cliente: 5, proveedor: 5 };
@@ -61,7 +63,9 @@ function itemRow(it: Item, today: string, dueColor: string) {
   let due = "";
   if (it.deadline) {
     const n = diffDays(it.deadline, today);
-    due = n < 0 ? `Vencido hace ${-n} d${-n === 1 ? "ía" : "ías"}` : n === 0 ? "Vence hoy" : n === 1 ? "Mañana" : fmtShort(it.deadline);
+    due = it.status === "cobranza"
+      ? (n < 0 ? `Atrasado ${-n} d${-n === 1 ? "ía" : "ías"}` : "Seguimiento hoy")
+      : n < 0 ? `Vencido hace ${-n} d${-n === 1 ? "ía" : "ías"}` : n === 0 ? "Vence hoy" : n === 1 ? "Mañana" : fmtShort(it.deadline);
   }
   const stageTxt = it.stage && STAGE[it.stage] ? `${STAGE[it.stage]}${it.stage_changed_at ? ` (${daysInStage(it, today)} d)` : ""}` : "";
   const meta = [it.client ? esc(it.client) : "", it.requester_name ? `Solicitó ${esc(it.requester_name)}` : "", stageTxt ? esc(stageTxt) : esc(STATUS[it.status] ?? "")].filter(Boolean).join(" · ");
@@ -88,11 +92,12 @@ function section(title: string, color: string, items: Item[], today: string, due
   </table></td></tr>`;
 }
 
-function buildEmail(name: string, today: string, g: { late: Item[]; now: Item[]; next: Item[]; wait: Item[]; stuck: Item[] }) {
+function buildEmail(name: string, today: string, g: { late: Item[]; now: Item[]; next: Item[]; wait: Item[]; stuck: Item[]; col: Item[] }) {
   const hola = name ? `Hola ${esc(name.split(/\s+/)[0])},` : "Hola,";
   const counts = [
     g.now.length ? `${g.now.length} para hoy` : "",
     g.late.length ? `${g.late.length} vencido${g.late.length > 1 ? "s" : ""}` : "",
+    g.col.length ? `${g.col.length} cobranza${g.col.length > 1 ? "s" : ""} por seguir` : "",
   ].filter(Boolean);
   const subject = counts.length ? `Tus pendientes de hoy: ${counts.join(", ")}` : `Tus pendientes: ${fmtLong(today)}`;
   const intro = counts.length
@@ -111,13 +116,14 @@ function buildEmail(name: string, today: string, g: { late: Item[]; now: Item[];
     ${section("Próximos 3 días", "#007aff", g.next, today, "#6e6e73")}
     ${section("Esperando respuesta", "#5856d6", g.wait, today, "#6e6e73")}
     ${section("Necesita seguimiento", "#af52de", g.stuck, today, "#6e6e73")}
+    ${section("Cobranza: dar seguimiento", "#007aff", g.col, today, "#ff3b30")}
     <tr><td align="center" style="padding:26px 4px 8px">
       <a href="${APP_URL}" style="display:inline-block;background:#007aff;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 26px;border-radius:999px">Abrir Backbrain</a>
     </td></tr>
     <tr><td align="center" style="padding:10px 4px;font-size:12px;color:#8e8e93">Recibes este resumen porque eres responsable de estos pendientes. Puedes apagarlo en Backbrain, botón Equipo.</td></tr>
   </table></td></tr></table></body></html>`;
   const lines = (t: string, xs: Item[]) => xs.length ? `\n${t}\n${xs.map((x) => `- ${x.title}${x.deadline ? ` (${fmtShort(x.deadline)})` : ""}`).join("\n")}\n` : "";
-  const text = `${hola}\n\n${intro}\n${lines("VENCIDOS", g.late)}${lines("PARA HOY", g.now)}${lines("PRÓXIMOS 3 DÍAS", g.next)}${lines("ESPERANDO RESPUESTA", g.wait)}${lines("NECESITA SEGUIMIENTO (ATORADOS EN SU ETAPA)", g.stuck)}\nAbrir Backbrain: ${APP_URL}`;
+  const text = `${hola}\n\n${intro}\n${lines("VENCIDOS", g.late)}${lines("PARA HOY", g.now)}${lines("PRÓXIMOS 3 DÍAS", g.next)}${lines("ESPERANDO RESPUESTA", g.wait)}${lines("NECESITA SEGUIMIENTO (ATORADOS EN SU ETAPA)", g.stuck)}${lines("COBRANZA: DAR SEGUIMIENTO", g.col)}\nAbrir Backbrain: ${APP_URL}`;
   return { subject, html, text };
 }
 
@@ -171,7 +177,7 @@ Deno.serve(async (req) => {
   const today = todayInTz();
   const [team, people, items] = await Promise.all([
     supabase.from("team_members").select("user_id"),
-    supabase.from("profiles").select("id,email,full_name,daily_digest,stages_enabled,weekly_summary"),
+    supabase.from("profiles").select("id,email,full_name,daily_digest,stages_enabled,weekly_summary,collections_enabled"),
     supabase.from("work_items").select("id,title,requester_name,client,deadline,priority,status,owner_id,stage,stage_changed_at").neq("status", "hecho"),
   ]);
   if (team.error || people.error || items.error) {
@@ -208,6 +214,15 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ today, mode, results }), { headers: { "Content-Type": "application/json" } });
   }
 
+  // Cobranzas activas cuyo próximo seguimiento ya llegó (solo para quien tenga Cobranza activada)
+  const colRes = await supabase.from("collections").select("id,owner_id,client,doc_type,amount,currency,next_follow_up,status")
+    .in("status", ["enviada", "negociacion", "firmado"]).lte("next_follow_up", today);
+  if (colRes.error) console.error(colRes.error);
+  const colItems = (colRes.data ?? []).map((c) => ({
+    id: c.id, title: `${c.client} · ${money(c.amount, c.currency)}`, requester_name: "", client: DOC[c.doc_type] ?? "",
+    deadline: c.next_follow_up, priority: "alta", status: "cobranza", owner_id: c.owner_id, stage: null, stage_changed_at: null,
+  } as Item)).sort((a, b) => (a.deadline ?? "").localeCompare(b.deadline ?? ""));
+
   for (const { user_id } of team.data) {
     if (only && user_id !== only) continue;
     const p = people.data.find((x) => x.id === user_id);
@@ -220,12 +235,13 @@ Deno.serve(async (req) => {
       next: mine.filter((it) => it.deadline && diffDays(it.deadline, today) >= 1 && diffDays(it.deadline, today) <= 3).sort(byPri),
       wait: mine.filter((it) => it.status === "espera" && !(it.deadline && diffDays(it.deadline, today) <= 3)).sort(byPri),
       stuck: [] as Item[],
+      col: p.collections_enabled ? colItems.filter((c) => c.owner_id === user_id) : [] as Item[],
     };
     if (p.stages_enabled) {
       const shown = new Set([...g.late, ...g.now, ...g.next, ...g.wait].map((it) => it.id));
       g.stuck = mine.filter((it) => isStuck(it, today) && !shown.has(it.id)).sort((a, b) => daysInStage(b, today) - daysInStage(a, today));
     }
-    if (!g.late.length && !g.now.length && !g.next.length && !g.wait.length && !g.stuck.length) { results[p.email] = "nada pendiente"; continue; }
+    if (!g.late.length && !g.now.length && !g.next.length && !g.wait.length && !g.stuck.length && !g.col.length) { results[p.email] = "nada pendiente"; continue; }
     results[p.email] = await sendMail(p.email, buildEmail(p.full_name, today, g));
   }
   console.log(JSON.stringify({ today, results }));
